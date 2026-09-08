@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catur Noir — Ruang</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<main class="game">
+  <header>
+    <a href="/">‹ lobi</a>
+    <span id="room-label"></span>
+  </header>
+  <div id="status">Memuat…</div>
+  <div id="share" hidden>
+    <p>Bagikan tautan ini ke lawan:</p>
+    <div class="row">
+      <input id="share-link" readonly>
+      <button id="btn-copy">Salin</button>
+    </div>
+  </div>
+  <div id="board"></div>
+  <div id="moves"></div>
+  <button id="btn-hint" hidden>Hint</button>
+</main>
+<script type="module" src="/js/game.js"></script>
+</body>
+</html>

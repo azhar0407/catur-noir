@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catur Noir</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<main class="lobby">
+  <h1 id="logo">Catur <span>Noir</span></h1>
+  <p class="sub">Duel catur realtime — tanpa akun, cukup bagikan tautan.</p>
+
+  <section class="card">
+    <h2>Buat Ruang</h2>
+    <button id="btn-create">Buat Ruang PvP</button>
+  </section>
+
+  <section class="card">
+    <h2>Gabung Ruang</h2>
+    <div class="row">
+      <input id="inp-code" maxlength="4" placeholder="KODE" autocomplete="off">
+      <button id="btn-join">Gabung</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Main vs Komputer</h2>
+    <div class="row">
+      <select id="sel-level">
+        <option value="1">Level 1 — mudah</option>
+        <option value="3" selected>Level 3</option>
+        <option value="6">Level 6</option>
+        <option value="10">Level 10 — sulit</option>
+      </select>
+      <button id="btn-bot">Main</button>
+    </div>
+  </section>
+</main>
+<script src="/js/app.js"></script>
+</body>
+</html>
