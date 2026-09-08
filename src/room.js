@@ -32,11 +32,13 @@ export class Room {
     const url = new URL(req.url);
 
     if (url.pathname === '/create') {
-      const id = url.searchParams.get('c');
+      const id = (url.searchParams.get('c') || '').trim();
+      if (!id || id === 'null' || id === 'undefined') return json({ ok: false }, 400);
       if (this.created) return json({ ok: false });
       this.created = true;
       this.players[id] = 'w';
       await this.ctx.storage.put({ created: 1, players: this.players });
+      await this.schedulePrune();
       return json({ ok: true, color: 'w' });
     }
 
@@ -46,14 +48,15 @@ export class Room {
       return json(room ? { room } : {});
     }
     if (url.pathname === '/dir-set') {
-      const room = url.searchParams.get('r');
+      const room = (url.searchParams.get('r') || '').trim().toUpperCase();
       if (!room) return json({ ok: false }, 400);
       await this.ctx.storage.put('dir-room', room);
       return json({ ok: true });
     }
 
     if (url.pathname === '/ws') {
-      const id = url.searchParams.get('c');
+      const id = (url.searchParams.get('c') || '').trim();
+      if (!id || id === 'null' || id === 'undefined') return json({ error: 'id tidak valid' }, 400);
       const pair = new WebSocketPair();
       this.ctx.acceptWebSocket(pair[1]);
       const color = await this.join(id, pair[1]);
@@ -98,12 +101,64 @@ export class Room {
     if (!color || color === 'spectator' || color !== turn) {
       return this.send(ws, { t: 'error', error: 'bukan giliranmu' });
     }
+    const promo = (typeof d.promotion === 'string' && ['q', 'r', 'b', 'n'].includes(d.promotion.toLowerCase()))
+      ? d.promotion.toLowerCase()
+      : 'q';
     let mv = null;
-    try { mv = this.game.move({ from: d.from, to: d.to, promotion: d.promotion || 'q' }); }
+    try { mv = this.game.move({ from: d.from, to: d.to, promotion: promo }); }
     catch { mv = null; }
     if (!mv) return this.send(ws, { t: 'error', error: 'langkah tidak sah' });
     await this.ctx.storage.put('fen', this.game.fen());
     this.broadcastState({ from: mv.from, to: mv.to });
+  }
+
+  async webSocketClose(ws, code, reason, wasClean) {
+    await this.schedulePrune();
+  }
+
+  async webSocketError(ws, error) {
+    await this.schedulePrune();
+  }
+
+  async schedulePrune(delayMs = 60000) {
+    const existing = await this.ctx.storage.getAlarm();
+    if (!existing) {
+      await this.ctx.storage.setAlarm(Date.now() + delayMs);
+    }
+  }
+
+  async alarm() {
+    await this.load();
+    const liveIds = new Set();
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        const att = ws.deserializeAttachment();
+        if (att && att.id) liveIds.add(att.id);
+      } catch {}
+    }
+
+    let changed = false;
+    for (const [id, color] of Object.entries(this.players)) {
+      if (!liveIds.has(id)) {
+        delete this.players[id];
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      if (Object.keys(this.players).length === 0) {
+        this.game = new Chess(START);
+        this.created = false;
+        await this.ctx.storage.deleteAll();
+      } else {
+        if (!Object.values(this.players).includes('w')) {
+          this.created = false;
+          await this.ctx.storage.delete('created');
+        }
+        await this.ctx.storage.put('players', this.players);
+      }
+      this.broadcastState();
+    }
   }
 
   broadcastState(last = null) {
@@ -122,5 +177,13 @@ export class Room {
 }
 
 function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json' } });
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: {
+      'content-type': 'application/json',
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'DENY',
+      'referrer-policy': 'strict-origin-when-cross-origin',
+    },
+  });
 }

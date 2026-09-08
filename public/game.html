@@ -12,18 +12,23 @@
     <a href="/">‹ lobi</a>
     <span id="room-label"></span>
   </header>
-  <div id="status">Memuat…</div>
+  <div id="status" role="status"><span class="dot"></span><span id="status-text">Memuat…</span></div>
   <div id="share" hidden>
     <p>Bagikan tautan ini ke lawan:</p>
     <div class="row">
-      <input id="share-link" readonly>
-      <button id="btn-copy">Salin</button>
+      <input id="share-link" readonly aria-label="Tautan undangan">
+      <button id="btn-copy" aria-label="Salin tautan">Salin</button>
     </div>
   </div>
-  <div id="board"></div>
-  <div id="moves"></div>
+  <div class="board-wrap">
+    <div id="ranks" aria-hidden="true"></div>
+    <div id="board" aria-label="Papan catur"></div>
+    <div id="files" aria-hidden="true"></div>
+  </div>
+  <div id="moves" aria-label="Riwayat langkah"></div>
   <button id="btn-hint" hidden>Hint</button>
 </main>
+<div id="toast-box"></div>
 <script type="module" src="/js/game.js"></script>
 </body>
 </html>

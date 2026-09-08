@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev"
+    "dev": "wrangler dev",
+    "test": "node tests/ws-test.mjs"
   },
   "dependencies": {
     "chess.js": "^1.4.0"

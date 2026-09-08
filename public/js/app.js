@@ -7,20 +7,41 @@ if (!id) {
 
 const $ = s => document.querySelector(s);
 
+function toast(msg, good = false) {
+  const box = document.getElementById('toast-box');
+  const el = document.createElement('div');
+  el.className = 'toast' + (good ? ' good' : '');
+  el.textContent = msg;
+  box.appendChild(el);
+  while (box.children.length > 3) box.firstChild.remove();
+  setTimeout(() => el.remove(), 4000);
+}
+window.noirToast = toast;
+
 $('#btn-create').onclick = async () => {
-  const res = await fetch('/api/room', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ id }),
-  });
-  const data = await res.json();
-  if (data.room) location.href = '/game?m=pvp&r=' + data.room;
-  else alert(data.error || 'Gagal membuat ruang.');
+  const btn = $('#btn-create');
+  btn.disabled = true;
+  btn.textContent = 'Membuat…';
+  try {
+    const res = await fetch('/api/room', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    if (data.room) location.href = '/game?m=pvp&r=' + data.room;
+    else { toast(data.error || 'Gagal membuat ruang.'); btn.disabled = false; btn.textContent = 'Buat Ruang PvP'; }
+  } catch {
+    toast('Jaringan bermasalah — coba lagi.');
+    btn.disabled = false;
+    btn.textContent = 'Buat Ruang PvP';
+  }
 };
 
 $('#btn-join').onclick = () => {
   const code = $('#inp-code').value.trim().toUpperCase();
   if (/^[A-Z]{4}$/.test(code)) location.href = '/game?m=pvp&r=' + code;
+  else toast('Kode ruang harus 4 huruf.');
 };
 $('#inp-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#btn-join').onclick(); });
 
@@ -47,8 +68,8 @@ $('#logo').onclick = () => {
     .then(d => {
       if (d.ok) {
         localStorage.setItem('noir-hint-ok', '1');
-        alert('Hint terbuka di semua mode.');
-      } else alert('Kode salah.');
+        toast('Hint terbuka di semua mode.', true);
+      } else toast('Kode salah.');
     })
-    .catch(() => alert('Gagal menghubungi server.'));
+    .catch(() => toast('Gagal menghubungi server.'));
 };

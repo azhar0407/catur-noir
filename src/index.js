@@ -3,6 +3,13 @@ import { Room } from './room.js';
 
 export { Room };
 
+const SEC_HEADERS = {
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'DENY',
+  'referrer-policy': 'strict-origin-when-cross-origin',
+  'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+};
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -10,7 +17,17 @@ export default {
     if (url.pathname === '/api/hint-unlock' && req.method === 'POST') return unlockHint(req, env);
     if (url.pathname === '/api/ws' && req.headers.get('Upgrade') === 'websocket') return proxyWs(req, env);
     if (url.pathname.startsWith('/api/')) return json({ error: 'tidak ditemukan' }, 404);
-    return env.ASSETS.fetch(req);
+
+    const res = await env.ASSETS.fetch(req);
+    const headers = new Headers(res.headers);
+    for (const [k, v] of Object.entries(SEC_HEADERS)) {
+      headers.set(k, v);
+    }
+    return new Response(res.body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers,
+    });
   },
 };
 
@@ -19,12 +36,14 @@ const ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ';
 
 async function createRoom(req, env) {
   const body = await safeJson(req);
-  const id = body.id;
-  if (!id || typeof id !== 'string' || id.length > 64) return json({ error: 'id tidak valid' }, 400);
+  const id = typeof body.id === 'string' ? body.id.trim() : '';
+  if (!id || id.length > 64 || id === 'null' || id === 'undefined') return json({ error: 'id tidak valid' }, 400);
+
   // Direktori per-id: satu id = satu ruang (create ulang -> ruang sama, idempoten).
   const dir = env.ROOM.get(env.ROOM.idFromName('id:' + id));
   const existing = await dir.fetch('https://do/dir-get').then(r => r.json()).catch(() => ({}));
   if (existing.room) return json({ room: existing.room, color: 'w' });
+
   // Coba maksimal 3 kode untuk menghindari tabrakan kode acak.
   for (let i = 0; i < 3; i++) {
     let code = '';
@@ -33,6 +52,9 @@ async function createRoom(req, env) {
     const res = await stub.fetch('https://do/create?c=' + encodeURIComponent(id));
     const data = await res.json().catch(() => ({}));
     if (data.ok) {
+      // Periksa kembali kemungkinan race concurrent create dengan id sama
+      const check = await dir.fetch('https://do/dir-get').then(r => r.json()).catch(() => ({}));
+      if (check.room) return json({ room: check.room, color: 'w' });
       await dir.fetch('https://do/dir-set?r=' + encodeURIComponent(code));
       return json({ room: code, color: 'w' });
     }
@@ -50,8 +72,10 @@ async function unlockHint(req, env) {
 async function proxyWs(req, env) {
   const url = new URL(req.url);
   const room = (url.searchParams.get('r') || '').toUpperCase();
-  const id = url.searchParams.get('c') || '';
-  if (!/^[A-Z]{4}$/.test(room) || !id || id.length > 64) return json({ error: 'parameter tidak valid' }, 400);
+  const id = (url.searchParams.get('c') || '').trim();
+  if (!/^[A-Z]{4}$/.test(room) || !id || id.length > 64 || id === 'null' || id === 'undefined') {
+    return json({ error: 'parameter tidak valid' }, 400);
+  }
   const stub = env.ROOM.get(env.ROOM.idFromName(room));
   const doUrl = new URL(req.url);
   doUrl.hostname = 'do';
@@ -66,6 +90,9 @@ async function safeJson(req) {
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      ...SEC_HEADERS,
+    },
   });
 }

@@ -47,6 +47,14 @@ const ALICE = 'alice-' + run, BOB = 'bob-' + run, CAROL = 'carol-' + run;
   ok('unlock kode benar -> 200', s2 === 200 && d2.ok === true);
 }
 
+// 1b. validasi id: null/empty ditolak
+{
+  const [sNull, dNull] = await post('/api/room', { id: 'null' });
+  ok('create room id="null" -> 400', sNull === 400 && !!dNull.error);
+  const [sEmpty, dEmpty] = await post('/api/room', { id: '' });
+  ok('create room id="" -> 400', sEmpty === 400 && !!dEmpty.error);
+}
+
 // 2. buat ruang
 const [, roomRes] = await post('/api/room', { id: ALICE });
 ok('create room -> kode 4 huruf', /^[A-Z]{4}$/.test(roomRes.room || ''), JSON.stringify(roomRes));
