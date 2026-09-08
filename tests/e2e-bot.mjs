@@ -1,6 +1,12 @@
 // Uji E2E browser: mode bot + hint via Stockfish WASM di Chromium headless.
 // Pakai: BASE=https://<url> node tests/e2e-bot.mjs   (perlu playwright + chromium)
-import { chromium } from 'playwright';
+let chromium;
+try {
+  ({ chromium } = await import('playwright'));
+} catch {
+  console.log('SKIP: playwright belum terpasang (npm i -D playwright).');
+  process.exit(0);
+}
 
 const base = process.env.BASE || 'http://127.0.0.1:8787';
 const results = [];

@@ -19,6 +19,7 @@ const statusText = $('#status-text');
 const movesEl = $('#moves');
 const hintBtn = $('#btn-hint');
 const flipBtn = $('#btn-flip');
+const resignBtn = $('#btn-resign');
 const shareBox = $('#share');
 const shareToggleBtn = $('#btn-share-toggle');
 
@@ -49,9 +50,15 @@ let hint = null;         // saran engine {from,to}
 let myColor = mode === 'bot' ? 'w' : null;
 let flip = false;        // true jika hitam di bawah
 let over = false;
+let resignColor = null;
+let onlineStatus = null;
 let pcount = mode === 'bot' ? 2 : 1;
 let ws = null;
 let moveHistory = [];
+let reconnectAttempts = 0;
+const MAX_RECONNECT = 10;
+let reconnectTimer = null;
+let pingTimer = null;
 
 // --- engine (Stockfish) ---
 let engine = null;
@@ -100,13 +107,26 @@ function connect() {
   if (mode !== 'pvp') return;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(proto + '://' + location.host + '/api/ws?r=' + room + '&c=' + myId);
+  ws.onopen = () => {
+    reconnectAttempts = 0;
+    clearInterval(pingTimer);
+    pingTimer = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        try { ws.send(JSON.stringify({ t: 'ping' })); } catch {}
+      }
+    }, 25000);
+  };
   ws.onmessage = e => {
     let d;
     try { d = JSON.parse(e.data); } catch { return; }
     if (d.t === 'init') {
+      reconnectAttempts = 0;
       myColor = d.you;
       pcount = d.players;
       if (Array.isArray(d.history)) moveHistory = d.history;
+      if (d.over != null) over = d.over;
+      if (d.resign != null) resignColor = d.resign;
+      if (d.online) onlineStatus = d.online;
       try { game.load(d.fen); } catch {}
       // Jika pemain hitam, papan otomatis terbalik (hitam di bawah)
       flip = myColor === 'b';
@@ -116,25 +136,50 @@ function connect() {
       pcount = d.players;
       if (pcount >= 2) shareBox.hidden = true;
       if (Array.isArray(d.history)) moveHistory = d.history;
+      if (d.over != null) over = d.over;
+      if (d.resign != null) resignColor = d.resign;
+      if (d.online) onlineStatus = d.online;
       if (d.fen !== game.fen()) {
         try { game.load(d.fen); } catch {}
         last = d.last;
         hint = null;
         sel = null;
-        over = game.isGameOver();
+        over = over || game.isGameOver();
         render();
       } else render();
     } else if (d.t === 'error') {
       statusText.textContent = d.error;
     }
   };
-  ws.onclose = () => setTimeout(connect, 1500);
+  ws.onclose = () => {
+    clearInterval(pingTimer);
+    scheduleReconnect();
+  };
+}
+
+function scheduleReconnect() {
+  if (mode !== 'pvp' || reconnectAttempts >= MAX_RECONNECT) return;
+  reconnectAttempts++;
+  clearTimeout(reconnectTimer);
+  const delay = Math.min(10000, 1000 * Math.pow(1.5, reconnectAttempts));
+  reconnectTimer = setTimeout(connect, delay);
 }
 
 // --- langkah ---
-function tryMove(from, to) {
+function tryMove(from, to, promo = null) {
+  const piece = game.get(from);
+  let selectedPromo = promo || 'q';
+  if (piece && piece.type === 'p') {
+    const isPromo = (piece.color === 'w' && to.endsWith('8')) || (piece.color === 'b' && to.endsWith('1'));
+    if (isPromo && !promo) {
+      const pick = window.prompt('Promosi pion ke: (Q) Ratu, (N) Kuda, (R) Benteng, (B) Gajah', 'Q');
+      if (!pick) return false;
+      const pLower = pick.trim().toLowerCase();
+      selectedPromo = ['q', 'r', 'b', 'n'].includes(pLower) ? pLower : 'q';
+    }
+  }
   const captured = game.get(to);
-  const mv = game.move({ from, to, promotion: 'q' });
+  const mv = game.move({ from, to, promotion: selectedPromo });
   if (!mv) return false;
   over = game.isGameOver();
   last = { from: mv.from, to: mv.to };
@@ -147,7 +192,7 @@ function tryMove(from, to) {
   if (mode === 'bot') {
     if (!over && game.turn() === 'b') botMove();
   } else if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ t: 'move', from: mv.from, to: mv.to, promotion: 'q' }));
+    ws.send(JSON.stringify({ t: 'move', from: mv.from, to: mv.to, promotion: selectedPromo }));
   }
   return true;
 }
@@ -163,7 +208,7 @@ let hintsLeft = 3;
 
 function askHint() {
   const myTurn = game.turn() === myColorOrW();
-  if (over || !myTurn) return;
+  if (over || !myTurn || engineBusy) return;
   if (mode === 'pvp') {
     if (!hintUnlocked || hintsLeft <= 0) return;
     hintsLeft--;
@@ -242,10 +287,11 @@ function render() {
   $('#ranks').innerHTML = ranks.map(r => '<span>' + r + '</span>').join('');
   $('#files').innerHTML = files.map(f => '<span>' + f + '</span>').join('');
 
-  // 2. Tombol Hint
+  // 2. Tombol Hint & Menyerah
   hintBtn.hidden = !(hintUnlocked && !over && !spectator && myTurn);
   hintBtn.disabled = mode === 'pvp' && hintsLeft <= 0;
   hintBtn.textContent = mode === 'pvp' ? '💡 Hint (' + hintsLeft + ')' : '💡 Hint';
+  if (resignBtn) resignBtn.hidden = over || spectator;
 
   // 3. Status Bar
   statusEl.className = 'status-bar';
@@ -348,7 +394,12 @@ function updatePlayerCards(topColor, bottomColor, myActualColor, spectator) {
     nameTop.textContent = topColor === 'w' ? 'Putih' : 'Hitam';
     avatarTop.textContent = '♟';
   } else {
-    nameTop.textContent = pcount < 2 ? 'Menunggu Lawan…' : 'Lawan';
+    if (pcount < 2) {
+      nameTop.textContent = 'Menunggu Lawan…';
+    } else {
+      const isOppOnline = onlineStatus ? onlineStatus[topColor] : true;
+      nameTop.textContent = isOppOnline ? 'Lawan' : 'Lawan (terputus…)';
+    }
     avatarTop.textContent = '👤';
   }
 
@@ -447,6 +498,11 @@ function onCell(sq, p) {
 }
 
 function hasilText() {
+  if (resignColor) {
+    const pemenang = resignColor === 'w' ? 'Hitam' : 'Putih';
+    const aku = (mode === 'bot') ? false : (myColor !== resignColor);
+    return aku ? '🏆 Lawan menyerah — Kamu menang!' : 'Kamu menyerah — ' + pemenang + ' menang.';
+  }
   if (game.isCheckmate()) {
     const pemenang = game.turn() === 'w' ? 'Hitam' : 'Putih';
     const aku = mode === 'bot' ? (pemenang === 'Putih') : (pemenang === (myColor === 'w' ? 'Putih' : 'Hitam'));
@@ -487,4 +543,19 @@ if (mode === 'pvp') {
   shareBox.hidden = true;
   flip = false; // Putih di bawah
   render();
+}
+
+if (resignBtn) {
+  resignBtn.onclick = () => {
+    if (over) return;
+    if (window.confirm('Yakin ingin menyerah?')) {
+      if (mode === 'pvp' && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ t: 'resign' }));
+      } else if (mode === 'bot') {
+        over = true;
+        resignColor = 'w';
+        render();
+      }
+    }
+  };
 }

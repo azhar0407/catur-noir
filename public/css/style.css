@@ -547,6 +547,15 @@ button.primary:hover { box-shadow: 0 6px 20px rgba(179, 32, 42, .4); border-colo
   border-color: var(--border-hi);
   color: var(--text);
 }
+.btn-resign {
+  background: var(--panel-2);
+  border-color: var(--border);
+  color: var(--accent-hi);
+}
+.btn-resign:hover {
+  border-color: var(--accent-hi);
+  box-shadow: 0 0 10px rgba(217, 69, 80, .25);
+}
 
 /* ---------- TOAST ---------- */
 #toast-box {

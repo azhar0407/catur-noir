@@ -26,7 +26,7 @@ $('#btn-create').onclick = async () => {
     const res = await fetch('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, force: true }),
     });
     const data = await res.json();
     if (data.room) location.href = '/game?m=pvp&r=' + data.room;

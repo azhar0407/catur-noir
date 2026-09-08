@@ -8,6 +8,7 @@ const SEC_HEADERS = {
   'x-frame-options': 'DENY',
   'referrer-policy': 'strict-origin-when-cross-origin',
   'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+  'content-security-policy': "default-src 'self'; script-src 'self' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' wss: ws:; worker-src 'self' blob:;",
 };
 
 export default {
@@ -39,10 +40,18 @@ async function createRoom(req, env) {
   const id = typeof body.id === 'string' ? body.id.trim() : '';
   if (!id || id.length > 64 || id === 'null' || id === 'undefined') return json({ error: 'id tidak valid' }, 400);
 
-  // Direktori per-id: satu id = satu ruang (create ulang -> ruang sama, idempoten).
+  // Direktori per-id: satu id = satu ruang (idempoten jika aktif, buat baru jika diminta/selesai).
   const dir = env.ROOM.get(env.ROOM.idFromName('id:' + id));
-  const existing = await dir.fetch('https://do/dir-get').then(r => r.json()).catch(() => ({}));
-  if (existing.room) return json({ room: existing.room, color: 'w' });
+  if (!body.force) {
+    const existing = await dir.fetch('https://do/dir-get').then(r => r.json()).catch(() => ({}));
+    if (existing.room) {
+      const stub = env.ROOM.get(env.ROOM.idFromName(existing.room));
+      const info = await stub.fetch('https://do/info').then(r => r.json()).catch(() => ({}));
+      if (info.ok && info.created && !info.over) {
+        return json({ room: existing.room, color: 'w' });
+      }
+    }
+  }
 
   // Coba maksimal 3 kode untuk menghindari tabrakan kode acak.
   for (let i = 0; i < 3; i++) {
