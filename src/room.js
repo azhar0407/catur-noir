@@ -84,6 +84,7 @@ export class Room {
       t: 'init',
       you: color,
       fen: this.game.fen(),
+      history: this.game.history(),
       players: this.activeCount(),
     });
     if (color !== 'spectator') this.broadcastState();
@@ -162,7 +163,7 @@ export class Room {
   }
 
   broadcastState(last = null) {
-    const msg = { t: 'state', fen: this.game.fen(), players: this.activeCount(), last };
+    const msg = { t: 'state', fen: this.game.fen(), players: this.activeCount(), history: this.game.history(), last };
     for (const s of this.ctx.getWebSockets()) this.send(s, msg);
   }
 

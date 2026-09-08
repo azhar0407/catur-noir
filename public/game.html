@@ -2,31 +2,90 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Catur Noir — Ruang</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Catur Noir</title>
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
 <main class="game">
-  <header>
-    <a href="/">‹ lobi</a>
-    <span id="room-label"></span>
+  <header class="arena-header">
+    <a href="/" class="btn-lobby" title="Kembali ke lobi">‹ Lobi</a>
+    <div class="arena-title">
+      <span class="brand-text">Catur <span>Noir</span></span>
+      <span id="room-label" class="room-pill"></span>
+    </div>
+    <button id="btn-share-toggle" class="btn-header-action" aria-label="Bagikan Tautan" title="Bagikan Tautan" hidden>
+      <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      <span>Bagikan</span>
+    </button>
   </header>
-  <div id="status" role="status"><span class="dot"></span><span id="status-text">Memuat…</span></div>
-  <div id="share" hidden>
-    <p>Bagikan tautan ini ke lawan:</p>
-    <div class="row">
+
+  <!-- KOTAK SHARE PVP -->
+  <div id="share" class="share-box" hidden>
+    <div class="share-title">Undang Lawan</div>
+    <div class="share-desc">Kirimkan tautan ini agar temanmu bisa langsung bertanding:</div>
+    <div class="share-row">
       <input id="share-link" readonly aria-label="Tautan undangan">
       <button id="btn-copy" aria-label="Salin tautan">Salin</button>
     </div>
   </div>
-  <div class="board-wrap">
-    <div id="ranks" aria-hidden="true"></div>
-    <div id="board" aria-label="Papan catur"></div>
-    <div id="files" aria-hidden="true"></div>
+
+  <!-- STATUS BANNER -->
+  <div id="status" role="status" class="status-bar">
+    <span class="dot"></span>
+    <span id="status-text">Memuat…</span>
   </div>
-  <div id="moves" aria-label="Riwayat langkah"></div>
-  <button id="btn-hint" hidden>Hint</button>
+
+  <!-- KARTU PEMAIN ATAS (LAWAN) -->
+  <div class="player-card top" id="card-top">
+    <div class="player-left">
+      <div class="player-avatar" id="avatar-top">🤖</div>
+      <div class="player-meta">
+        <div class="player-name-wrap">
+          <span class="player-name" id="name-top">Lawan</span>
+          <span class="player-color-tag" id="tag-top">Hitam</span>
+        </div>
+        <div class="player-captures" id="captured-top"></div>
+      </div>
+    </div>
+    <div class="player-turn-pill" id="turn-top" hidden>Giliran Lawan</div>
+  </div>
+
+  <!-- PAPAN CATUR -->
+  <div class="board-frame">
+    <div class="board-wrap">
+      <div id="ranks" aria-hidden="true"></div>
+      <div id="board" aria-label="Papan catur" role="grid"></div>
+      <div id="files" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <!-- KARTU PEMAIN BAWAH (USER) -->
+  <div class="player-card bottom" id="card-bottom">
+    <div class="player-left">
+      <div class="player-avatar" id="avatar-bottom">👤</div>
+      <div class="player-meta">
+        <div class="player-name-wrap">
+          <span class="player-name" id="name-bottom">Kamu</span>
+          <span class="player-color-tag" id="tag-bottom">Putih</span>
+        </div>
+        <div class="player-captures" id="captured-bottom"></div>
+      </div>
+    </div>
+    <div class="player-turn-pill" id="turn-bottom" hidden>Giliranmu</div>
+  </div>
+
+  <!-- RIWAYAT & AKSI -->
+  <div class="arena-footer">
+    <div class="moves-container">
+      <div class="moves-label">Langkah:</div>
+      <div id="moves" aria-label="Riwayat langkah"></div>
+    </div>
+    <div class="footer-actions">
+      <button id="btn-hint" class="btn-tool btn-hint" hidden>💡 Hint</button>
+      <button id="btn-flip" class="btn-tool btn-flip" title="Balik sudut pandang papan">🔄 Balik</button>
+    </div>
+  </div>
 </main>
 <div id="toast-box"></div>
 <script type="module" src="/js/game.js"></script>
