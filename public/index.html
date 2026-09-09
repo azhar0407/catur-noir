@@ -47,15 +47,19 @@
         <option value="rnd">Acak</option>
       </select>
     </div>
-    <div class="row">
-      <select id="sel-level" aria-label="Level komputer">
-        <option value="1">Level 1 — mudah</option>
-        <option value="3" selected>Level 3</option>
-        <option value="6">Level 6</option>
-        <option value="10">Level 10 — sulit</option>
-      </select>
-      <button id="btn-bot">Main</button>
+    <div class="lobby-field">
+      <div class="field-header">
+        <label for="slider-elo" class="field-label">Kekuatan Bot (Elo):</label>
+        <span id="elo-display" class="elo-badge">1500 Elo · Klub</span>
+      </div>
+      <input type="range" id="slider-elo" min="0" max="3200" step="50" value="1500" class="elo-slider" aria-label="Slider Elo Bot">
+      <div class="elo-ticks">
+        <span>0 (Pemula)</span>
+        <span>1500 (Klub)</span>
+        <span>3200 (Max)</span>
+      </div>
     </div>
+    <button id="btn-bot" class="primary">Tantang Bot</button>
   </section>
 
   <p class="lobby-foot">noir · tanpa akun · tanpa cookie pelacak</p>

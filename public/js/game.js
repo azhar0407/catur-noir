@@ -4,7 +4,18 @@ import { Chess } from '/js/vendor/chess.esm.js';
 const qs = new URLSearchParams(location.search);
 const mode = qs.get('m') === 'bot' ? 'bot' : 'pvp';
 const room = (qs.get('r') || '').toUpperCase();
-const skill = Math.min(20, Math.max(1, parseInt(qs.get('s') || '3', 10) || 3));
+
+// Parameter Elo (0 s/d 3200) atau fallback ke 's' lama
+const rawElo = qs.get('elo');
+const rawSkill = qs.get('s');
+let botElo = 1500;
+if (rawElo != null) {
+  botElo = Math.min(3200, Math.max(0, parseInt(rawElo, 10) || 0));
+} else if (rawSkill != null) {
+  const sk = parseInt(rawSkill, 10) || 3;
+  botElo = Math.min(3200, Math.max(0, Math.round(sk * 300)));
+}
+
 const botSideChoice = qs.get('c') === 'b' ? 'b' : 'w';
 
 let myId = localStorage.getItem('noir-id');
@@ -12,7 +23,7 @@ if (!myId) {
   myId = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   localStorage.setItem('noir-id', myId);
 }
-const hintUnlocked = localStorage.getItem('noir-hint-ok') === '1';
+let hintUnlocked = localStorage.getItem('noir-hint-ok') === '1';
 
 const $ = s => document.querySelector(s);
 const statusEl = $('#status');
@@ -305,6 +316,7 @@ function requestEngine(fen, opts, cb) {
   engineQueue.push({
     fen,
     skill: opts.skill !== undefined ? opts.skill : 20,
+    uciElo: opts.uciElo || null,
     movetime: opts.movetime || 400,
     depth: opts.depth || null,
     limitStrength: opts.limitStrength ?? false,
@@ -319,11 +331,17 @@ function pumpEngine() {
   engineBusy = true;
   currentEval = null;
 
-  engine.postMessage('setoption name Skill Level value ' + job.skill);
   if (job.limitStrength) {
     engine.postMessage('setoption name UCI_LimitStrength value true');
+    if (job.uciElo) {
+      engine.postMessage('setoption name UCI_Elo value ' + job.uciElo);
+    }
   } else {
     engine.postMessage('setoption name UCI_LimitStrength value false');
+  }
+
+  if (job.skill != null) {
+    engine.postMessage('setoption name Skill Level value ' + job.skill);
   }
 
   engine.postMessage('position fen ' + job.fen);
@@ -546,9 +564,22 @@ function executeMove(from, to, promo = 'q') {
 }
 
 function botMove() {
-  const botSkill = Math.min(16, Math.max(0, Math.round(skill * 1.5)));
-  const botMovetime = Math.min(500, 150 + skill * 35);
-  requestEngine(game.fen(), { skill: botSkill, movetime: botMovetime, limitStrength: true }, mv => {
+  let opts = {};
+  if (botElo === 0) {
+    opts = { skill: 0, depth: 1, movetime: 60, limitStrength: true };
+  } else if (botElo < 1320) {
+    const sk = Math.floor((botElo / 1320) * 6);
+    const dp = Math.max(1, Math.floor((botElo / 1320) * 4));
+    const mt = Math.max(80, Math.floor(botElo * 0.25));
+    opts = { skill: sk, depth: dp, movetime: mt, limitStrength: true };
+  } else if (botElo < 3190) {
+    const mt = Math.min(800, 250 + Math.floor((botElo - 1320) * 0.25));
+    opts = { uciElo: botElo, movetime: mt, limitStrength: true };
+  } else {
+    // 3200 (Max Super-Engine)
+    opts = { skill: 20, movetime: 1000, limitStrength: false };
+  }
+  requestEngine(game.fen(), opts, mv => {
     if (!over && game.turn() !== myColor) {
       executeMove(mv.from, mv.to, mv.promotion || 'q');
     }
@@ -894,7 +925,7 @@ function updatePlayerCards(topColor, bottomColor, myActualColor, spectator) {
   const avatarTop = $('#avatar-top');
 
   if (mode === 'bot') {
-    nameTop.textContent = 'Stockfish';
+    nameTop.textContent = 'Bot (' + botElo + ' Elo)';
     avatarTop.textContent = '🤖';
   } else if (spectator) {
     nameTop.textContent = topColor === 'w' ? 'Putih' : 'Hitam';
@@ -1051,11 +1082,42 @@ if (mode === 'pvp') {
   if (shareBox) shareBox.hidden = false;
   connect();
 } else {
-  $('#room-label').textContent = 'vs Bot · Lv ' + skill + (myColor === 'b' ? ' (Hitam)' : ' (Putih)');
+  $('#room-label').textContent = 'vs Bot · ' + botElo + ' Elo' + (myColor === 'b' ? ' (Hitam)' : ' (Putih)');
   if (shareToggleBtn) shareToggleBtn.hidden = true;
   if (shareBox) shareBox.hidden = true;
   render();
   if (myColor === 'b') {
     setTimeout(botMove, 500);
   }
+}
+
+// Gerbang rahasia: ketuk logo 3x untuk membuka hint
+let secretTaps = 0, secretTimer = null;
+const brandEl = $('.brand');
+if (brandEl) {
+  brandEl.onclick = (e) => {
+    clearTimeout(secretTimer);
+    secretTaps++;
+    secretTimer = setTimeout(() => { secretTaps = 0; }, 1500);
+    if (secretTaps < 3) return;
+    e.preventDefault();
+    secretTaps = 0;
+    const code = prompt('Cheat Code / Akses Rahasia:');
+    if (!code) return;
+    fetch('/api/hint-unlock', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code: code.trim() }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          localStorage.setItem('noir-hint-ok', '1');
+          hintUnlocked = true;
+          if (hintBtn) hintBtn.hidden = false;
+          toast('Cheat aktif! Hint terbuka.', true);
+        } else toast('Kode salah.');
+      })
+      .catch(() => toast('Gagal menghubungi server.'));
+  };
 }

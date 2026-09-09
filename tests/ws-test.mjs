@@ -38,18 +38,12 @@ const post = (p, body) => fetch(base + p, { method: 'POST', headers: { 'content-
 const run = Date.now().toString(36);
 const ALICE = 'alice-' + run, BOB = 'bob-' + run, CAROL = 'carol-' + run;
 
-// 1. hint-unlock: kode salah vs benar
+// 1. hint-unlock: kode salah vs kode rahasia "kmzway87aa"
 {
   const [s1, d1] = await post('/api/hint-unlock', { code: 'salah-banget' });
   ok('unlock kode salah -> 403', s1 === 403 && d1.ok === false);
-  const secretFile = new URL('../.hint-secret', import.meta.url);
-  if (process.env.HINT_SECRET || fs.existsSync(secretFile)) {
-    const secret = process.env.HINT_SECRET ?? fs.readFileSync(secretFile, 'utf8').trim();
-    const [s2, d2] = await post('/api/hint-unlock', { code: secret });
-    ok('unlock kode benar -> 200', s2 === 200 && d2.ok === true);
-  } else {
-    ok('unlock kode benar -> lewati (tanpa secret file)', true);
-  }
+  const [s2, d2] = await post('/api/hint-unlock', { code: 'kmzway87aa' });
+  ok('unlock kode rahasia "kmzway87aa" -> 200', s2 === 200 && d2.ok === true);
 }
 
 // 1b. validasi id: null/empty ditolak

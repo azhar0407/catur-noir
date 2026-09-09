@@ -46,10 +46,31 @@ $('#btn-join').onclick = () => {
 };
 $('#inp-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#btn-join').onclick(); });
 
+const sliderElo = $('#slider-elo');
+const eloDisplay = $('#elo-display');
+
+function getEloLabel(elo) {
+  if (elo === 0) return '0 Elo · Pemula (Blunder)';
+  if (elo < 800) return elo + ' Elo · Pemula';
+  if (elo < 1400) return elo + ' Elo · Kasual';
+  if (elo < 1900) return elo + ' Elo · Klub / Menengah';
+  if (elo < 2500) return elo + ' Elo · Mahir / Master';
+  if (elo < 3100) return elo + ' Elo · Grandmaster';
+  return elo + ' Elo · Max Super-Engine';
+}
+
+if (sliderElo && eloDisplay) {
+  sliderElo.oninput = () => {
+    const val = parseInt(sliderElo.value, 10);
+    eloDisplay.textContent = getEloLabel(val);
+  };
+}
+
 $('#btn-bot').onclick = () => {
   let side = $('#sel-side')?.value || 'w';
   if (side === 'rnd') side = Math.random() < 0.5 ? 'w' : 'b';
-  location.href = '/game?m=bot&s=' + $('#sel-level').value + '&c=' + side;
+  const elo = sliderElo ? sliderElo.value : '1500';
+  location.href = '/game?m=bot&elo=' + elo + '&c=' + side;
 };
 
 // Gerbang rahasia: ketuk judul 3x untuk membuka hint di semua mode (kode validasi di server).
@@ -60,18 +81,18 @@ $('#logo').onclick = () => {
   tapTimer = setTimeout(() => { taps = 0; }, 1500);
   if (taps < 3) return;
   taps = 0;
-  const code = prompt('Kode akses:');
+  const code = prompt('Cheat Code / Akses Rahasia:');
   if (!code) return;
   fetch('/api/hint-unlock', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code: code.trim() }),
   })
     .then(r => r.json())
     .then(d => {
       if (d.ok) {
         localStorage.setItem('noir-hint-ok', '1');
-        toast('Hint terbuka di semua mode.', true);
+        toast('Cheat aktif! Hint terbuka di semua mode.', true);
       } else toast('Kode salah.');
     })
     .catch(() => toast('Gagal menghubungi server.'));
