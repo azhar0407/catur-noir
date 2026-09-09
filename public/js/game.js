@@ -257,6 +257,7 @@ let engine = null;
 let engineReady = false;
 let engineBusy = false;
 const engineQueue = [];
+let currentEval = null;
 
 function ensureEngine() {
   if (engine) return;
@@ -267,13 +268,33 @@ function ensureEngine() {
 }
 
 function handleEngine(line) {
-  if (line === 'uciok') engine.postMessage('isready');
-  else if (line === 'readyok') { engineReady = true; pumpEngine(); }
-  else if (line.startsWith('bestmove')) {
+  if (line === 'uciok') {
+    engine.postMessage('setoption name Hash value 16');
+    engine.postMessage('isready');
+  } else if (line === 'readyok') {
+    engineReady = true;
+    pumpEngine();
+  } else if (line.startsWith('info depth')) {
+    const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
+    const depthMatch = line.match(/depth (\d+)/);
+    if (scoreMatch) {
+      currentEval = {
+        type: scoreMatch[1],
+        val: parseInt(scoreMatch[2], 10),
+        depth: depthMatch ? parseInt(depthMatch[1], 10) : 0,
+      };
+    }
+  } else if (line.startsWith('bestmove')) {
     engineBusy = false;
     const job = engineQueue.shift();
     const uci = line.split(/\s+/)[1] || '';
-    const mv = { from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] || 'q' };
+    const mv = {
+      from: uci.slice(0, 2),
+      to: uci.slice(2, 4),
+      promotion: uci[4] || 'q',
+      eval: currentEval,
+    };
+    currentEval = null;
     if (job && job.cb) job.cb(mv);
     pumpEngine();
   }
@@ -281,7 +302,14 @@ function handleEngine(line) {
 
 function requestEngine(fen, opts, cb) {
   ensureEngine();
-  engineQueue.push({ fen, skill: opts.skill ?? null, cb });
+  engineQueue.push({
+    fen,
+    skill: opts.skill !== undefined ? opts.skill : 20,
+    movetime: opts.movetime || 400,
+    depth: opts.depth || null,
+    limitStrength: opts.limitStrength ?? false,
+    cb,
+  });
   pumpEngine();
 }
 
@@ -289,9 +317,21 @@ function pumpEngine() {
   if (!engineReady || engineBusy || engineQueue.length === 0) return;
   const job = engineQueue[0];
   engineBusy = true;
-  if (job.skill != null) engine.postMessage('setoption name Skill Level value ' + job.skill);
+  currentEval = null;
+
+  engine.postMessage('setoption name Skill Level value ' + job.skill);
+  if (job.limitStrength) {
+    engine.postMessage('setoption name UCI_LimitStrength value true');
+  } else {
+    engine.postMessage('setoption name UCI_LimitStrength value false');
+  }
+
   engine.postMessage('position fen ' + job.fen);
-  engine.postMessage('go movetime 400');
+  if (job.depth) {
+    engine.postMessage('go depth ' + job.depth + ' movetime ' + job.movetime);
+  } else {
+    engine.postMessage('go movetime ' + job.movetime);
+  }
 }
 
 // --- PROMOSI BIDAK ---
@@ -506,7 +546,9 @@ function executeMove(from, to, promo = 'q') {
 }
 
 function botMove() {
-  requestEngine(game.fen(), { skill }, mv => {
+  const botSkill = Math.min(16, Math.max(0, Math.round(skill * 1.5)));
+  const botMovetime = Math.min(500, 150 + skill * 35);
+  requestEngine(game.fen(), { skill: botSkill, movetime: botMovetime, limitStrength: true }, mv => {
     if (!over && game.turn() !== myColor) {
       executeMove(mv.from, mv.to, mv.promotion || 'q');
     }
@@ -522,9 +564,20 @@ function askHint() {
     if (!hintUnlocked || hintsLeft <= 0) return;
     hintsLeft--;
   }
-  statusText.textContent = 'Menghitung langkah terbaik…';
-  requestEngine(game.fen(), {}, mv => {
+  statusText.textContent = 'Menganalisis langkah terbaik (Grandmaster Stockfish)…';
+  requestEngine(game.fen(), { skill: 20, depth: 14, movetime: 1200, limitStrength: false }, mv => {
     hint = mv;
+    let evalStr = '';
+    if (mv.eval) {
+      if (mv.eval.type === 'mate') {
+        evalStr = ` (Skakmat dalam ${Math.abs(mv.eval.val)} langkah!)`;
+      } else {
+        const sign = mv.eval.val > 0 ? '+' : '';
+        evalStr = ` (eval: ${sign}${(mv.eval.val / 100).toFixed(1)})`;
+      }
+    }
+    statusText.textContent = `💡 Rekomendasi: ${mv.from} → ${mv.to}${evalStr}`;
+    toast(`💡 Rekomendasi: ${mv.from.toUpperCase()} ke ${mv.to.toUpperCase()}${evalStr}`, true);
     render();
   });
 }
