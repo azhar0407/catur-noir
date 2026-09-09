@@ -63,8 +63,9 @@ const ALICE = 'alice-' + run, BOB = 'bob-' + run, CAROL = 'carol-' + run;
 // 1c. ghost room (belum dibuat) ditolak saat upgrade WS
 {
   let ghostRejected = false;
+  const ghostRoom = 'Q' + Math.random().toString(36).slice(2, 5).toUpperCase();
   try {
-    await wsConnect('ghost-' + run, 'ZZZZ');
+    await wsConnect('ghost-' + run, ghostRoom);
   } catch {
     ghostRejected = true;
   }
