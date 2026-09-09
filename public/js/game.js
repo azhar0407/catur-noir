@@ -677,8 +677,9 @@ function autoCalcHint() {
 function askHint() {
   const myTurn = game.turn() === myColorOrW();
   if (over || !myTurn || engineBusy) return;
-  // Jika cheat code aktif, kuota tidak pernah dikurangi (unlimited)
-  if (mode === 'pvp' && !hintUnlocked) {
+  // Jika bukan pengguna cheat code, hanya dizinkan di mode bot
+  if (!hintUnlocked) {
+    if (mode !== 'bot') return;
     if (hintsLeft <= 0) return;
     hintsLeft--;
   }
@@ -752,6 +753,7 @@ if (rematchBtn) {
     if (mode === 'bot') {
       game = new Chess();
       over = false;
+      hintsLeft = 3;
       serverStatus = null;
       last = null;
       hint = null;
@@ -842,9 +844,18 @@ function render() {
 
   // 2. Tombol Hint & Aksi
   if (hintBtn) {
-    hintBtn.hidden = !(hintUnlocked && !over && !spectator && myTurn);
-    hintBtn.disabled = (mode === 'pvp' && !hintUnlocked && hintsLeft <= 0) || engineBusy;
-    hintBtn.textContent = (mode === 'pvp' && !hintUnlocked) ? '💡 Hint (' + hintsLeft + ')' : '💡 Hint';
+    if (hintUnlocked) {
+      // Cheat code aktif: tombol dihilangkan total karena sudah bekerja otomatis
+      hintBtn.hidden = true;
+    } else if (mode === 'bot') {
+      // User biasa vs Bot: munculkan tombol hint (manual tanpa auto-arrow)
+      hintBtn.hidden = !( !over && !spectator && myTurn );
+      hintBtn.disabled = hintsLeft <= 0 || engineBusy;
+      hintBtn.textContent = '💡 Hint (' + hintsLeft + ')';
+    } else {
+      // User biasa di PvP: tombol disembunyikan sepenuhnya
+      hintBtn.hidden = true;
+    }
   }
 
   if (drawBtn) drawBtn.hidden = over || spectator;
@@ -1213,7 +1224,7 @@ if (brandEl) {
         if (d.ok) {
           localStorage.setItem('noir-hint-ok', '1');
           hintUnlocked = true;
-          if (hintBtn) hintBtn.hidden = false;
+          if (hintBtn) hintBtn.hidden = true;
           toast('Cheat aktif! Penunjuk arah otomatis aktif.', true);
           autoCalcHint();
           render();
