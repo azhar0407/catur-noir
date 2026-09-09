@@ -597,3 +597,193 @@ button.primary:hover { box-shadow: 0 6px 20px rgba(179, 32, 42, .4); border-colo
   .status-bar { padding: 6px 12px; font-size: .84rem; }
   .arena-title .brand-text { font-size: 1rem; }
 }
+
+/* ---------- KONTROL TAMBAHAN LOBI ---------- */
+.lobby-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.field-label {
+  font-size: .78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+/* ---------- JAM CATUR (CLOCK) ---------- */
+.player-clock {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  color: var(--text);
+  min-width: 58px;
+  text-align: center;
+}
+.player-card.active-turn .player-clock {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(212, 160, 23, 0.1);
+}
+.player-clock.low {
+  border-color: var(--accent-hi) !important;
+  color: var(--accent-hi) !important;
+  animation: clockPanic 0.8s infinite alternate;
+}
+@keyframes clockPanic {
+  from { opacity: 0.7; }
+  to { opacity: 1; }
+}
+
+/* ---------- BANNER PENAWARAN (REMIS / REMATCH) ---------- */
+.offer-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: linear-gradient(180deg, #2a2212, #1b160b);
+  border: 1px solid var(--gold-dim);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: .86rem;
+  animation: rise .2s ease-out;
+}
+.offer-actions {
+  display: flex;
+  gap: 6px;
+}
+.btn-sm {
+  padding: 4px 10px;
+  font-size: .8rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.btn-accept {
+  background: var(--ok);
+  color: #0b0a09;
+  border: none;
+}
+.btn-accept:hover { filter: brightness(1.15); }
+.btn-decline {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.btn-decline:hover { color: var(--text); border-color: var(--border-hi); }
+
+/* ---------- FOOTER ACTIONS EXTENDED ---------- */
+.footer-actions-secondary {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.btn-tool-sm {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: .82rem;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: inherit;
+  font-weight: 600;
+}
+.btn-tool-sm:hover {
+  border-color: var(--border-hi);
+  color: var(--text);
+}
+.btn-tool-accent {
+  background: linear-gradient(180deg, #8f202a, #68121a);
+  border-color: #d9455066;
+  color: #fff;
+}
+.btn-tool-accent:hover {
+  border-color: var(--accent-hi);
+}
+
+/* ---------- MODAL PROMOSI BIDAK ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: fadeIn .15s ease-out;
+}
+.modal-box {
+  background: var(--panel);
+  border: 1px solid var(--border-hi);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+  text-align: center;
+  max-width: 320px;
+  width: 90%;
+}
+.modal-title {
+  font-size: .92rem;
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: .05em;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+.promo-choices {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.promo-btn {
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform .1s, border-color .1s, background-color .1s;
+}
+.promo-btn:hover {
+  border-color: var(--gold);
+  background: rgba(212, 160, 23, 0.12);
+  transform: scale(1.08);
+}
+.promo-btn img {
+  width: 80%;
+  height: 80%;
+  pointer-events: none;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---------- DRAG & DROP GHOST ---------- */
+#drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 999;
+  transform: translate(-50%, -50%);
+  width: calc(var(--cs) * 0.9);
+  height: calc(var(--cs) * 0.9);
+  display: none;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.6));
+}
+.cell.dragging .pc {
+  opacity: 0.15;
+}

@@ -40,9 +40,12 @@ async function createRoom(req, env) {
   const id = typeof body.id === 'string' ? body.id.trim() : '';
   if (!id || id.length > 64 || id === 'null' || id === 'undefined') return json({ error: 'id tidak valid' }, 400);
 
+  const tc = Math.max(0, parseInt(body.timeControl || body.t || '0', 10) || 0);
+  const force = !!body.force;
+
   // Direktori per-id: satu id = satu ruang (idempoten jika aktif, buat baru jika diminta/selesai).
   const dir = env.ROOM.get(env.ROOM.idFromName('id:' + id));
-  if (!body.force) {
+  if (!force) {
     const existing = await dir.fetch('https://do/dir-get').then(r => r.json()).catch(() => ({}));
     if (existing.room) {
       const stub = env.ROOM.get(env.ROOM.idFromName(existing.room));
@@ -58,12 +61,17 @@ async function createRoom(req, env) {
     let code = '';
     for (let j = 0; j < 4; j++) code += ALPHA[Math.floor(Math.random() * ALPHA.length)];
     const stub = env.ROOM.get(env.ROOM.idFromName(code));
-    const res = await stub.fetch('https://do/create?c=' + encodeURIComponent(id));
+    const res = await stub.fetch('https://do/create?c=' + encodeURIComponent(id) + '&t=' + encodeURIComponent(tc));
     const data = await res.json().catch(() => ({}));
     if (data.ok) {
-      // Periksa kembali kemungkinan race concurrent create dengan id sama
-      const check = await dir.fetch('https://do/dir-get').then(r => r.json()).catch(() => ({}));
-      if (check.room) return json({ room: check.room, color: 'w' });
+      if (!force) {
+        const check = await dir.fetch('https://do/dir-get').then(r => r.json()).catch(() => ({}));
+        if (check.room) {
+          const chkStub = env.ROOM.get(env.ROOM.idFromName(check.room));
+          const chkInfo = await chkStub.fetch('https://do/info').then(r => r.json()).catch(() => ({}));
+          if (chkInfo.ok && chkInfo.created && !chkInfo.over) return json({ room: check.room, color: 'w' });
+        }
+      }
       await dir.fetch('https://do/dir-set?r=' + encodeURIComponent(code));
       return json({ room: code, color: 'w' });
     }

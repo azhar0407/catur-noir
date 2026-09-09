@@ -20,13 +20,14 @@ window.noirToast = toast;
 
 $('#btn-create').onclick = async () => {
   const btn = $('#btn-create');
+  const timeControl = parseInt($('#sel-time')?.value || '0', 10) || 0;
   btn.disabled = true;
   btn.textContent = 'Membuat…';
   try {
     const res = await fetch('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id, force: true }),
+      body: JSON.stringify({ id, timeControl, force: true }),
     });
     const data = await res.json();
     if (data.room) location.href = '/game?m=pvp&r=' + data.room;
@@ -46,7 +47,9 @@ $('#btn-join').onclick = () => {
 $('#inp-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#btn-join').onclick(); });
 
 $('#btn-bot').onclick = () => {
-  location.href = '/game?m=bot&s=' + $('#sel-level').value;
+  let side = $('#sel-side')?.value || 'w';
+  if (side === 'rnd') side = Math.random() < 0.5 ? 'w' : 'b';
+  location.href = '/game?m=bot&s=' + $('#sel-level').value + '&c=' + side;
 };
 
 // Gerbang rahasia: ketuk judul 3x untuk membuka hint di semua mode (kode validasi di server).

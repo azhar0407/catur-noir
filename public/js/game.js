@@ -1,10 +1,11 @@
-// Arena: papan, WebSocket (PvP) atau engine lokal (vs bot), hint untuk yang berhak.
+// Arena: papan catur, Web Audio SFX, Drag & Drop, Jam, Promosi Bidak, Heartbeat, PvP & Bot.
 import { Chess } from '/js/vendor/chess.esm.js';
 
 const qs = new URLSearchParams(location.search);
 const mode = qs.get('m') === 'bot' ? 'bot' : 'pvp';
 const room = (qs.get('r') || '').toUpperCase();
 const skill = Math.min(20, Math.max(1, parseInt(qs.get('s') || '3', 10) || 3));
+const botSideChoice = qs.get('c') === 'b' ? 'b' : 'w';
 
 let myId = localStorage.getItem('noir-id');
 if (!myId) {
@@ -19,9 +20,24 @@ const statusText = $('#status-text');
 const movesEl = $('#moves');
 const hintBtn = $('#btn-hint');
 const flipBtn = $('#btn-flip');
+const drawBtn = $('#btn-draw');
 const resignBtn = $('#btn-resign');
+const rematchBtn = $('#btn-rematch');
+const pgnBtn = $('#btn-pgn');
+const analysisBtn = $('#btn-analysis');
+const postGameActions = $('#post-game-actions');
 const shareBox = $('#share');
 const shareToggleBtn = $('#btn-share-toggle');
+const soundBtn = $('#btn-sound');
+const promoModal = $('#promo-modal');
+const promoChoices = $('#promo-choices');
+const offerBanner = $('#offer-banner');
+const offerText = $('#offer-text');
+const btnOfferAccept = $('#btn-offer-accept');
+const btnOfferDecline = $('#btn-offer-decline');
+const clockTop = $('#clock-top');
+const clockBottom = $('#clock-bottom');
+const dragGhost = $('#drag-ghost');
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const GLYPHS = {
@@ -43,24 +59,174 @@ function toast(msg, good = false) {
   setTimeout(() => el.remove(), 4000);
 }
 
+// --- SUARA (SFX via Web Audio API) ---
+let soundEnabled = localStorage.getItem('noir-sound') !== '0';
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx && typeof window.AudioContext !== 'undefined') {
+    audioCtx = new window.AudioContext();
+  }
+}
+
+function updateSoundButton() {
+  if (soundBtn) {
+    soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+    soundBtn.title = soundEnabled ? 'Suara: Aktif' : 'Suara: Senyap';
+  }
+}
+updateSoundButton();
+
+if (soundBtn) {
+  soundBtn.onclick = () => {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem('noir-sound', soundEnabled ? '1' : '0');
+    updateSoundButton();
+    toast(soundEnabled ? 'Suara diaktifkan.' : 'Suara dinonaktifkan.', true);
+    if (soundEnabled) initAudio();
+  };
+}
+
+function playSfx(type) {
+  if (!soundEnabled) return;
+  try {
+    initAudio();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const now = audioCtx.currentTime;
+
+    if (type === 'move') {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } else if (type === 'capture') {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(450, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.12);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } else if (type === 'check') {
+      [587.33, 880].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.04);
+        gain.gain.setValueAtTime(0.25, now + i * 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + i * 0.04);
+        osc.stop(now + 0.25);
+      });
+    } else if (type === 'gameover') {
+      [220, 277.18, 329.63].forEach(freq => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      });
+    }
+  } catch {}
+}
+
 let game = new Chess();
-let sel = null;          // kotak terpilih
-let last = null;         // langkah terakhir {from,to}
-let hint = null;         // saran engine {from,to}
-let myColor = mode === 'bot' ? 'w' : null;
-let flip = false;        // true jika hitam di bawah
+let sel = null;
+let last = null;
+let hint = null;
+let myColor = mode === 'bot' ? botSideChoice : null;
+let flip = mode === 'bot' ? (myColor === 'b') : false;
 let over = false;
-let resignColor = null;
+let serverStatus = null;
 let onlineStatus = null;
 let pcount = mode === 'bot' ? 2 : 1;
 let ws = null;
 let moveHistory = [];
+let pendingPromo = null;
+
 let reconnectAttempts = 0;
 const MAX_RECONNECT = 10;
 let reconnectTimer = null;
 let pingTimer = null;
 
-// --- engine (Stockfish) ---
+// Clocks state
+let serverTimers = null;
+let timerLocalTs = Date.now();
+let timerInterval = null;
+
+function startTimerLoop() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(updateClocksDisplay, 100);
+}
+
+function updateClocksDisplay() {
+  if (!clockTop || !clockBottom) return;
+  if (!serverTimers) {
+    clockTop.hidden = true;
+    clockBottom.hidden = true;
+    return;
+  }
+  clockTop.hidden = false;
+  clockBottom.hidden = false;
+
+  const now = Date.now();
+  const elapsed = (serverTimers.activeTurn && !over) ? Math.max(0, now - timerLocalTs) : 0;
+
+  const wRemaining = Math.max(0, serverTimers.w - (serverTimers.activeTurn === 'w' ? elapsed : 0));
+  const bRemaining = Math.max(0, serverTimers.b - (serverTimers.activeTurn === 'b' ? elapsed : 0));
+
+  const bottomColor = flip ? 'b' : 'w';
+  const topColor = flip ? 'w' : 'b';
+
+  const bottomMs = bottomColor === 'w' ? wRemaining : bRemaining;
+  const topMs = topColor === 'w' ? wRemaining : bRemaining;
+
+  renderClockEl(clockBottom, bottomMs, serverTimers.activeTurn === bottomColor && !over);
+  renderClockEl(clockTop, topMs, serverTimers.activeTurn === topColor && !over);
+
+  if (!over && ((wRemaining <= 0 && serverTimers.activeTurn === 'w') || (bRemaining <= 0 && serverTimers.activeTurn === 'b'))) {
+    if (mode === 'bot') {
+      over = true;
+      serverStatus = {
+        over: true,
+        result: 'timeout',
+        winner: serverTimers.activeTurn === 'w' ? 'b' : 'w',
+      };
+      playSfx('gameover');
+      render();
+    }
+  }
+}
+
+function renderClockEl(el, ms, isActive) {
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  el.textContent = String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+  if (totalSec <= 30 && ms > 0 && isActive) el.classList.add('low');
+  else el.classList.remove('low');
+}
+
+// --- ENGINE (Stockfish) ---
 let engine = null;
 let engineReady = false;
 let engineBusy = false;
@@ -102,11 +268,35 @@ function pumpEngine() {
   engine.postMessage('go movetime 400');
 }
 
-// --- PvP: WebSocket ---
+// --- PROMOSI BIDAK ---
+function askPromotion(color, from, to) {
+  pendingPromo = { from, to };
+  promoChoices.innerHTML = '';
+  const pieces = ['q', 'n', 'r', 'b'];
+  for (const p of pieces) {
+    const btn = document.createElement('button');
+    btn.className = 'promo-btn';
+    btn.type = 'button';
+    const img = document.createElement('img');
+    img.src = '/pieces/' + color + p.toUpperCase() + '.svg';
+    img.alt = p;
+    btn.appendChild(img);
+    btn.onclick = () => {
+      promoModal.hidden = true;
+      executeMove(pendingPromo.from, pendingPromo.to, p);
+      pendingPromo = null;
+    };
+    promoChoices.appendChild(btn);
+  }
+  promoModal.hidden = false;
+}
+
+// --- PVP: WebSocket & Reconnect ---
 function connect() {
   if (mode !== 'pvp') return;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(proto + '://' + location.host + '/api/ws?r=' + room + '&c=' + myId);
+
   ws.onopen = () => {
     reconnectAttempts = 0;
     clearInterval(pingTimer);
@@ -116,41 +306,84 @@ function connect() {
       }
     }, 25000);
   };
+
   ws.onmessage = e => {
     let d;
     try { d = JSON.parse(e.data); } catch { return; }
+
+    if (d.t === 'pong') return;
+
     if (d.t === 'init') {
       reconnectAttempts = 0;
       myColor = d.you;
       pcount = d.players;
-      if (Array.isArray(d.history)) moveHistory = d.history;
-      if (d.over != null) over = d.over;
-      if (d.resign != null) resignColor = d.resign;
+      serverStatus = d.status || (d.over ? { over: true, result: d.resign ? 'resign' : 'finished', winner: d.resign === 'w' ? 'b' : 'w' } : null);
       if (d.online) onlineStatus = d.online;
+      if (Array.isArray(d.history)) moveHistory = d.history;
       try { game.load(d.fen); } catch {}
-      // Jika pemain hitam, papan otomatis terbalik (hitam di bawah)
       flip = myColor === 'b';
-      if (pcount >= 2) shareBox.hidden = true;
+      if (pcount >= 2 && shareBox) shareBox.hidden = true;
+      if (d.timers) {
+        serverTimers = d.timers;
+        timerLocalTs = Date.now();
+        startTimerLoop();
+      }
+      over = isFinished();
       render();
     } else if (d.t === 'state') {
       pcount = d.players;
-      if (pcount >= 2) shareBox.hidden = true;
+      if (pcount >= 2 && shareBox) shareBox.hidden = true;
       if (Array.isArray(d.history)) moveHistory = d.history;
-      if (d.over != null) over = d.over;
-      if (d.resign != null) resignColor = d.resign;
+      serverStatus = d.status || (d.over ? { over: true, result: d.resign ? 'resign' : 'finished', winner: d.resign === 'w' ? 'b' : 'w' } : null);
       if (d.online) onlineStatus = d.online;
+
+      if (d.timers) {
+        serverTimers = d.timers;
+        timerLocalTs = Date.now();
+        startTimerLoop();
+      }
+
       if (d.fen !== game.fen()) {
+        const prevFen = game.fen();
         try { game.load(d.fen); } catch {}
         last = d.last;
         hint = null;
         sel = null;
-        over = over || game.isGameOver();
+        over = isFinished();
+
+        if (d.last) {
+          const isCheck = game.inCheck();
+          const isOverNow = isFinished();
+          if (isOverNow) playSfx('gameover');
+          else if (isCheck) playSfx('check');
+          else if (prevFen.split(' ')[0] !== d.fen.split(' ')[0]) {
+            playSfx(d.last.captured ? 'capture' : 'move');
+          }
+        }
         render();
-      } else render();
+      } else {
+        over = isFinished();
+        render();
+      }
+    } else if (d.t === 'draw_offered') {
+      showOffer('Lawan menawarkan hasil remis.', () => {
+        ws.send(JSON.stringify({ t: 'draw_response', accept: true }));
+      }, () => {
+        ws.send(JSON.stringify({ t: 'draw_response', accept: false }));
+      });
+    } else if (d.t === 'draw_declined') {
+      toast('Lawan menolak tawaran remis.');
+    } else if (d.t === 'rematch_offered') {
+      showOffer('Lawan mengajak tanding ulang.', () => {
+        ws.send(JSON.stringify({ t: 'rematch_accept' }));
+      }, () => {
+        offerBanner.hidden = true;
+      });
     } else if (d.t === 'error') {
       statusText.textContent = d.error;
     }
   };
+
   ws.onclose = () => {
     clearInterval(pingTimer);
     scheduleReconnect();
@@ -165,47 +398,92 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(connect, delay);
 }
 
-// --- langkah ---
-function tryMove(from, to, promo = null) {
-  const piece = game.get(from);
-  let selectedPromo = promo || 'q';
-  if (piece && piece.type === 'p') {
-    const isPromo = (piece.color === 'w' && to.endsWith('8')) || (piece.color === 'b' && to.endsWith('1'));
-    if (isPromo && !promo) {
-      const pick = window.prompt('Promosi pion ke: (Q) Ratu, (N) Kuda, (R) Benteng, (B) Gajah', 'Q');
-      if (!pick) return false;
-      const pLower = pick.trim().toLowerCase();
-      selectedPromo = ['q', 'r', 'b', 'n'].includes(pLower) ? pLower : 'q';
+function showOffer(msg, onAccept, onDecline) {
+  if (!offerBanner) return;
+  offerText.textContent = msg;
+  offerBanner.hidden = false;
+  btnOfferAccept.onclick = () => {
+    offerBanner.hidden = true;
+    onAccept();
+  };
+  btnOfferDecline.onclick = () => {
+    offerBanner.hidden = true;
+    onDecline();
+  };
+}
+
+function isFinished() {
+  if (serverStatus && serverStatus.over) return true;
+  return game.isGameOver();
+}
+
+function myColorOrW() {
+  return mode === 'bot' ? myColor : myColor;
+}
+
+// --- LANGKAH ---
+function tryMove(from, to) {
+  const p = game.get(from);
+  if (!p) return false;
+
+  const isPawn = p.type === 'p';
+  const isRank8 = (p.color === 'w' && to[1] === '8') || (p.color === 'b' && to[1] === '1');
+  if (isPawn && isRank8) {
+    const legalMoves = game.moves({ square: from, verbose: true });
+    if (legalMoves.some(m => m.to === to)) {
+      askPromotion(p.color, from, to);
+      return true;
     }
+    return false;
   }
+
+  return executeMove(from, to, 'q');
+}
+
+function executeMove(from, to, promo = 'q') {
   const captured = game.get(to);
-  const mv = game.move({ from, to, promotion: selectedPromo });
+  let mv = null;
+  try {
+    mv = game.move({ from, to, promotion: promo });
+  } catch {
+    mv = null;
+  }
   if (!mv) return false;
-  over = game.isGameOver();
-  last = { from: mv.from, to: mv.to };
+
+  over = isFinished();
+  last = { from: mv.from, to: mv.to, captured: !!captured };
   hint = null;
   sel = null;
+
+  if (over) playSfx('gameover');
+  else if (game.inCheck()) playSfx('check');
+  else if (captured) playSfx('capture');
+  else playSfx('move');
+
   render();
+
   if (captured && !over) {
     toast((captured.color === 'w' ? 'Putih' : 'Hitam') + ' kehilangan ' + namaBidak(captured.type) + '.');
   }
+
   if (mode === 'bot') {
-    if (!over && game.turn() === 'b') botMove();
+    if (!over && game.turn() !== myColor) botMove();
   } else if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ t: 'move', from: mv.from, to: mv.to, promotion: selectedPromo }));
+    ws.send(JSON.stringify({ t: 'move', from: mv.from, to: mv.to, promotion: promo }));
   }
   return true;
 }
 
 function botMove() {
   requestEngine(game.fen(), { skill }, mv => {
-    if (!over && game.turn() === 'b') tryMove(mv.from, mv.to);
+    if (!over && game.turn() !== myColor) {
+      executeMove(mv.from, mv.to, mv.promotion || 'q');
+    }
   });
 }
 
-// --- hint ---
+// --- HINT ---
 let hintsLeft = 3;
-
 function askHint() {
   const myTurn = game.turn() === myColorOrW();
   if (over || !myTurn || engineBusy) return;
@@ -219,16 +497,91 @@ function askHint() {
     render();
   });
 }
+if (hintBtn) hintBtn.onclick = askHint;
 
-hintBtn.onclick = askHint;
+if (flipBtn) {
+  flipBtn.onclick = () => {
+    flip = !flip;
+    render();
+    toast('Sudut pandang papan dibalik.', true);
+  };
+}
 
-flipBtn.onclick = () => {
-  flip = !flip;
-  render();
-  toast('Sudut pandang papan dibalik.', true);
-};
+if (resignBtn) {
+  resignBtn.onclick = () => {
+    if (over) return;
+    if (!confirm('Yakin ingin menyerah?')) return;
+    if (mode === 'bot') {
+      over = true;
+      serverStatus = { over: true, result: 'resign', winner: myColor === 'w' ? 'b' : 'w' };
+      playSfx('gameover');
+      render();
+    } else if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ t: 'resign' }));
+    }
+  };
+}
 
-// Hitung bidak yang ditangkap & keunggulan poin
+if (drawBtn) {
+  drawBtn.onclick = () => {
+    if (over) return;
+    if (mode === 'bot') {
+      const caps = getCaptures();
+      const lead = caps.w.lead;
+      if (Math.abs(lead) <= 1 && !game.inCheck()) {
+        over = true;
+        serverStatus = { over: true, result: 'draw_agreed' };
+        toast('Komputer menyetujui tawaran remis.', true);
+        playSfx('gameover');
+        render();
+      } else {
+        toast('Komputer menolak tawaran remis.');
+      }
+    } else if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ t: 'draw_offer' }));
+      toast('Tawaran remis dikirimkan ke lawan.', true);
+    }
+  };
+}
+
+if (rematchBtn) {
+  rematchBtn.onclick = () => {
+    if (mode === 'bot') {
+      game = new Chess();
+      over = false;
+      serverStatus = null;
+      last = null;
+      hint = null;
+      sel = null;
+      moveHistory = [];
+      myColor = myColor === 'w' ? 'b' : 'w';
+      flip = myColor === 'b';
+      render();
+      toast('Tanding ulang dimulai! Kamu ' + (myColor === 'w' ? 'Putih' : 'Hitam') + '.', true);
+      if (myColor === 'b') botMove();
+    } else if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ t: 'rematch_offer' }));
+      toast('Ajakan tanding ulang dikirimkan...', true);
+    }
+  };
+}
+
+if (pgnBtn) {
+  pgnBtn.onclick = () => {
+    const pgn = game.pgn();
+    navigator.clipboard.writeText(pgn || game.fen()).then(() => {
+      toast('PGN berhasil disalin ke clipboard!', true);
+    }).catch(() => toast('Gagal menyalin PGN.'));
+  };
+}
+
+if (analysisBtn) {
+  analysisBtn.onclick = () => {
+    const fen = game.fen();
+    window.open('https://lichess.org/analysis?fen=' + encodeURIComponent(fen), '_blank');
+  };
+}
+
 function getCaptures() {
   const initial = { p: 8, n: 2, b: 2, r: 2, q: 1 };
   const currentW = { p: 0, n: 0, b: 0, r: 0, q: 0 };
@@ -244,8 +597,8 @@ function getCaptures() {
     }
   }
 
-  const capturedByW = []; // bidak hitam yang dimakan putih
-  const capturedByB = []; // bidak putih yang dimakan hitam
+  const capturedByW = [];
+  const capturedByB = [];
   const vals = { p: 1, n: 3, b: 3, r: 5, q: 9 };
   let scoreW = 0, scoreB = 0;
 
@@ -269,29 +622,31 @@ function getCaptures() {
   };
 }
 
-function myColorOrW() { return mode === 'bot' ? 'w' : myColor; }
-
 // --- RENDER UTAMA ---
 function render() {
   const myActualColor = myColorOrW();
   const spectator = mode === 'pvp' && (!myColor || myColor === 'spectator');
   const myTurn = game.turn() === myActualColor;
 
-  // Warna posisi pemain: bawah selalu posisi user/flip, atas lawan
   const bottomColor = flip ? 'b' : 'w';
   const topColor = flip ? 'w' : 'b';
 
-  // 1. Ranks & Files (User di bawah: bila flip=false, rank 8..1; bila flip=true, rank 1..8)
+  // 1. Ranks & Files
   const ranks = flip ? [1, 2, 3, 4, 5, 6, 7, 8] : [8, 7, 6, 5, 4, 3, 2, 1];
   const files = flip ? [...FILES].reverse() : FILES;
   $('#ranks').innerHTML = ranks.map(r => '<span>' + r + '</span>').join('');
   $('#files').innerHTML = files.map(f => '<span>' + f + '</span>').join('');
 
-  // 2. Tombol Hint & Menyerah
-  hintBtn.hidden = !(hintUnlocked && !over && !spectator && myTurn);
-  hintBtn.disabled = mode === 'pvp' && hintsLeft <= 0;
-  hintBtn.textContent = mode === 'pvp' ? '💡 Hint (' + hintsLeft + ')' : '💡 Hint';
+  // 2. Tombol Hint & Aksi
+  if (hintBtn) {
+    hintBtn.hidden = !(hintUnlocked && !over && !spectator && myTurn);
+    hintBtn.disabled = (mode === 'pvp' && hintsLeft <= 0) || engineBusy;
+    hintBtn.textContent = mode === 'pvp' ? '💡 Hint (' + hintsLeft + ')' : '💡 Hint';
+  }
+
+  if (drawBtn) drawBtn.hidden = over || spectator;
   if (resignBtn) resignBtn.hidden = over || spectator;
+  if (postGameActions) postGameActions.hidden = !over;
 
   // 3. Status Bar
   statusEl.className = 'status-bar';
@@ -310,11 +665,11 @@ function render() {
     statusEl.classList.add('check');
   } else {
     statusText.textContent = 'Giliran: ' + (game.turn() === 'w' ? 'Putih' : 'Hitam') +
-      (mode === 'bot' ? ' (kamu putih)' : myActualColor === game.turn() ? ' — Giliranmu' : ' — Giliran lawan');
+      (mode === 'bot' ? (myActualColor === game.turn() ? ' — Giliranmu' : ' — Komputer berpikir') : myActualColor === game.turn() ? ' — Giliranmu' : ' — Giliran lawan');
     statusEl.classList.add(game.turn() === myActualColor ? 'mine' : 'wait');
   }
 
-  // 4. Update Kartu Pemain (Atas = Lawan, Bawah = User)
+  // 4. Update Kartu Pemain
   updatePlayerCards(topColor, bottomColor, myActualColor, spectator);
 
   // 5. Render Papan Catur
@@ -323,7 +678,6 @@ function render() {
   const moves = sel ? game.moves({ square: sel, verbose: true }) : [];
   const targets = new Set(moves.map(m => m.to));
 
-  // Cek apakah ada raja yang sedang kena skak
   let checkSquare = null;
   if (game.inCheck()) {
     const currentTurn = game.turn();
@@ -366,7 +720,9 @@ function render() {
         img.src = '/pieces/' + (p.color === 'w' ? 'w' : 'b') + p.type.toUpperCase() + '.svg';
         img.className = 'pc ' + p.color;
         cell.appendChild(img);
+        setupDrag(cell, sq, p);
       }
+
       cell.onclick = () => onCell(sq, p);
       board.appendChild(cell);
     }
@@ -374,12 +730,63 @@ function render() {
 
   // 6. Riwayat Langkah
   renderMovesHistory();
+  updateClocksDisplay();
+}
+
+// --- DRAG & DROP SUPPORT ---
+let dragStartSq = null;
+let isDragging = false;
+
+function setupDrag(cell, sq, p) {
+  if (!dragGhost) return;
+  cell.onpointerdown = e => {
+    if (over) return;
+    const spectator = mode === 'pvp' && (!myColor || myColor === 'spectator');
+    if (spectator || game.turn() !== myColorOrW()) return;
+    if (p.color !== game.turn()) return;
+
+    dragStartSq = sq;
+    isDragging = true;
+    cell.classList.add('dragging');
+    dragGhost.src = '/pieces/' + (p.color === 'w' ? 'w' : 'b') + p.type.toUpperCase() + '.svg';
+    dragGhost.style.display = 'block';
+    dragGhost.style.left = e.clientX + 'px';
+    dragGhost.style.top = e.clientY + 'px';
+
+    const onPointerMove = evt => {
+      if (!isDragging) return;
+      dragGhost.style.left = evt.clientX + 'px';
+      dragGhost.style.top = evt.clientY + 'px';
+    };
+
+    const onPointerUp = evt => {
+      if (!isDragging) return;
+      isDragging = false;
+      cell.classList.remove('dragging');
+      dragGhost.style.display = 'none';
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+
+      const targetEl = document.elementFromPoint(evt.clientX, evt.clientY);
+      const targetCell = targetEl ? targetEl.closest('.cell') : null;
+      if (targetCell) {
+        const targetSq = targetCell.getAttribute('data-sq');
+        if (targetSq && targetSq !== dragStartSq) {
+          tryMove(dragStartSq, targetSq);
+        }
+      }
+      dragStartSq = null;
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
 }
 
 function updatePlayerCards(topColor, bottomColor, myActualColor, spectator) {
   const caps = getCaptures();
 
-  // --- KARTU ATAS (LAWAN) ---
+  // TOP
   const nameTop = $('#name-top');
   const tagTop = $('#tag-top');
   const capTop = $('#captured-top');
@@ -406,7 +813,6 @@ function updatePlayerCards(topColor, bottomColor, myActualColor, spectator) {
   tagTop.textContent = topColor === 'w' ? 'Putih' : 'Hitam';
   tagTop.className = 'player-color-tag ' + topColor;
 
-  // Tangkapan pihak atas
   const topCaps = caps[topColor];
   let topCapHtml = topCaps.list.map(g => '<span class="cap-item">' + g + '</span>').join('');
   if (topCaps.lead > 0) topCapHtml += '<span class="cap-lead">+' + topCaps.lead + '</span>';
@@ -417,7 +823,7 @@ function updatePlayerCards(topColor, bottomColor, myActualColor, spectator) {
   turnTop.textContent = 'Giliran Lawan';
   cardTop.className = 'player-card top' + (isTopTurn ? ' active-turn' : '');
 
-  // --- KARTU BAWAH (USER) ---
+  // BOTTOM
   const nameBottom = $('#name-bottom');
   const tagBottom = $('#tag-bottom');
   const capBottom = $('#captured-bottom');
@@ -436,7 +842,6 @@ function updatePlayerCards(topColor, bottomColor, myActualColor, spectator) {
   tagBottom.textContent = bottomColor === 'w' ? 'Putih' : 'Hitam';
   tagBottom.className = 'player-color-tag ' + bottomColor;
 
-  // Tangkapan pihak bawah
   const btmCaps = caps[bottomColor];
   let btmCapHtml = btmCaps.list.map(g => '<span class="cap-item">' + g + '</span>').join('');
   if (btmCaps.lead > 0) btmCapHtml += '<span class="cap-lead">+' + btmCaps.lead + '</span>';
@@ -450,7 +855,7 @@ function updatePlayerCards(topColor, bottomColor, myActualColor, spectator) {
 
 function renderMovesHistory() {
   const h = mode === 'bot' ? game.history() : moveHistory;
-  if (h.length === 0) {
+  if (!h || h.length === 0) {
     movesEl.textContent = 'Belum ada langkah';
     return;
   }
@@ -469,7 +874,7 @@ function onCell(sq, p) {
   if (over) return;
   const spectator = mode === 'pvp' && (!myColor || myColor === 'spectator');
   if (spectator) return;
-  if (game.turn() !== myColorOrW()) return; // bukan giliranmu
+  if (game.turn() !== myColorOrW()) return;
 
   if (sel) {
     if (sq === sel) {
@@ -477,7 +882,6 @@ function onCell(sq, p) {
       render();
       return;
     }
-    // Jika klik bidak sendiri yang lain, pindah seleksi langsung
     if (p && p.color === game.turn()) {
       sel = sq;
       hint = null;
@@ -498,14 +902,21 @@ function onCell(sq, p) {
 }
 
 function hasilText() {
-  if (resignColor) {
-    const pemenang = resignColor === 'w' ? 'Hitam' : 'Putih';
-    const aku = (mode === 'bot') ? false : (myColor !== resignColor);
-    return aku ? '🏆 Lawan menyerah — Kamu menang!' : 'Kamu menyerah — ' + pemenang + ' menang.';
+  if (serverStatus && serverStatus.result) {
+    const res = serverStatus.result;
+    const win = serverStatus.winner;
+    const aku = (win === myColor);
+    if (res === 'resign') {
+      return aku ? '🏆 Lawan menyerah — Kamu menang!' : '🏳️ Kamu menyerah — Lawan menang.';
+    }
+    if (res === 'timeout') {
+      return aku ? '⏱️ Waktu lawan habis — Kamu menang!' : '⏱️ Waktumu habis — Lawan menang.';
+    }
+    if (res === 'draw_agreed') return '🤝 Kesepakatan bersama — Permainan remis.';
   }
   if (game.isCheckmate()) {
     const pemenang = game.turn() === 'w' ? 'Hitam' : 'Putih';
-    const aku = mode === 'bot' ? (pemenang === 'Putih') : (pemenang === (myColor === 'w' ? 'Putih' : 'Hitam'));
+    const aku = (pemenang === (myColor === 'w' ? 'Putih' : 'Hitam'));
     return aku ? '🏆 Skakmat — Kamu menang!' : 'Skakmat — ' + pemenang + ' menang.';
   }
   if (game.isStalemate()) return 'Pat (stalemate) — Permainan remis.';
@@ -515,47 +926,37 @@ function hasilText() {
   return 'Permainan berakhir.';
 }
 
-// --- Inisialisasi Mode ---
+// --- INISIALISASI ---
 if (mode === 'pvp') {
   $('#room-label').textContent = room;
-  shareToggleBtn.hidden = false;
+  if (shareToggleBtn) shareToggleBtn.hidden = false;
   const link = location.origin + '/game?m=pvp&r=' + room;
-  $('#share-link').value = link;
+  if ($('#share-link')) $('#share-link').value = link;
 
-  shareToggleBtn.onclick = () => {
-    shareBox.hidden = !shareBox.hidden;
-  };
+  if (shareToggleBtn) {
+    shareToggleBtn.onclick = () => {
+      if (shareBox) shareBox.hidden = !shareBox.hidden;
+    };
+  }
 
-  $('#btn-copy').onclick = () => {
-    navigator.clipboard.writeText(link).then(() => {
-      $('#btn-copy').textContent = '✓ Tersalin!';
-      toast('Tautan disalin — kirimkan ke lawan.', true);
-      setTimeout(() => { $('#btn-copy').textContent = 'Salin'; }, 2500);
-    }).catch(() => toast('Gagal menyalin — silakan salin teks secara manual.'));
-  };
+  if ($('#btn-copy')) {
+    $('#btn-copy').onclick = () => {
+      navigator.clipboard.writeText(link).then(() => {
+        $('#btn-copy').textContent = '✓ Tersalin!';
+        toast('Tautan disalin — kirimkan ke lawan.', true);
+        setTimeout(() => { $('#btn-copy').textContent = 'Salin'; }, 2500);
+      }).catch(() => toast('Gagal menyalin tautan.'));
+    };
+  }
 
-  // Tampilkan kotak share di awal jika belum ada lawan
-  shareBox.hidden = false;
+  if (shareBox) shareBox.hidden = false;
   connect();
 } else {
-  $('#room-label').textContent = 'vs Bot · Lv ' + skill;
-  shareToggleBtn.hidden = true;
-  shareBox.hidden = true;
-  flip = false; // Putih di bawah
+  $('#room-label').textContent = 'vs Bot · Lv ' + skill + (myColor === 'b' ? ' (Hitam)' : ' (Putih)');
+  if (shareToggleBtn) shareToggleBtn.hidden = true;
+  if (shareBox) shareBox.hidden = true;
   render();
-}
-
-if (resignBtn) {
-  resignBtn.onclick = () => {
-    if (over) return;
-    if (window.confirm('Yakin ingin menyerah?')) {
-      if (mode === 'pvp' && ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ t: 'resign' }));
-      } else if (mode === 'bot') {
-        over = true;
-        resignColor = 'w';
-        render();
-      }
-    }
-  };
+  if (myColor === 'b') {
+    setTimeout(botMove, 500);
+  }
 }

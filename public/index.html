@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0a09">
+<meta name="description" content="Duel catur realtime tanpa akun — cukup bagikan tautan.">
 <title>Catur Noir</title>
+<link rel="manifest" href="/manifest.json">
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -14,6 +17,15 @@
 
   <section class="card">
     <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M5 8l7-5 7 5M7 21h10" stroke-linecap="round" stroke-linejoin="round"/></svg>Buat Ruang</h2>
+    <div class="lobby-field">
+      <label for="sel-time" class="field-label">Kontrol Waktu:</label>
+      <select id="sel-time" aria-label="Kontrol Waktu">
+        <option value="0" selected>Tanpa Waktu</option>
+        <option value="180">3 Menit (Blitz)</option>
+        <option value="300">5 Menit (Blitz)</option>
+        <option value="600">10 Menit (Rapid)</option>
+      </select>
+    </div>
     <button id="btn-create" class="primary">Buat Ruang PvP</button>
   </section>
 
@@ -27,6 +39,14 @@
 
   <section class="card">
     <h2><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>Main vs Komputer</h2>
+    <div class="lobby-field">
+      <label for="sel-side" class="field-label">Pilih Sisi:</label>
+      <select id="sel-side" aria-label="Pilih Sisi">
+        <option value="w" selected>Putih (mulai duluan)</option>
+        <option value="b">Hitam (komputer mulai)</option>
+        <option value="rnd">Acak</option>
+      </select>
+    </div>
     <div class="row">
       <select id="sel-level" aria-label="Level komputer">
         <option value="1">Level 1 — mudah</option>

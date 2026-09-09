@@ -1,4 +1,4 @@
-// Uji fungsional Catur Noir: REST + WebSocket, 14 skenario.
+// Uji fungsional Catur Noir: REST + WebSocket, 16 skenario.
 // Pakai: BASE=https://<url> node tests/ws-test.mjs   (default lokal dev)
 import fs from 'node:fs';
 const base = process.env.BASE || 'http://127.0.0.1:8787';
@@ -23,7 +23,7 @@ function wsConnect(id, room) {
     ws.onerror = () => reject(new Error('ws error'));
     ws.waitFor = (pred, ms = 6000) => new Promise((res, rej) => {
       const idx = inbox.findIndex(pred);
-      if (idx >= 0) return res(inbox.splice(idx, 1)[0]); // konsumsi pesan
+      if (idx >= 0) return res(inbox.splice(idx, 1)[0]);
       const w = { pred, resolve: d => { const i = inbox.indexOf(d); if (i >= 0) inbox.splice(i, 1); res(d); } };
       waiters.push(w);
       setTimeout(() => rej(new Error('timeout')), ms);
@@ -42,15 +42,13 @@ const ALICE = 'alice-' + run, BOB = 'bob-' + run, CAROL = 'carol-' + run;
 {
   const [s1, d1] = await post('/api/hint-unlock', { code: 'salah-banget' });
   ok('unlock kode salah -> 403', s1 === 403 && d1.ok === false);
-  let secret = process.env.HINT_SECRET;
-  if (!secret) {
-    try { secret = fs.readFileSync(new URL('../.hint-secret', import.meta.url), 'utf8').trim(); } catch {}
-  }
-  if (secret) {
+  const secretFile = new URL('../.hint-secret', import.meta.url);
+  if (process.env.HINT_SECRET || fs.existsSync(secretFile)) {
+    const secret = process.env.HINT_SECRET ?? fs.readFileSync(secretFile, 'utf8').trim();
     const [s2, d2] = await post('/api/hint-unlock', { code: secret });
     ok('unlock kode benar -> 200', s2 === 200 && d2.ok === true);
   } else {
-    ok('unlock kode benar -> di-skip (tidak ada secret)', true);
+    ok('unlock kode benar -> lewati (tanpa secret file)', true);
   }
 }
 
@@ -133,10 +131,29 @@ alice2.send(JSON.stringify({ t: 'ping' }));
 const pong = await alice2.waitFor(d => d.t === 'pong');
 ok('heartbeat ping -> pong berhasil', pong.t === 'pong');
 
-// 7. fitur menyerah (resign)
+// 7. fitur menyerah (resign): Bob menyerah -> Alice menang
 bob.send(JSON.stringify({ t: 'resign' }));
 const stResign = await alice2.waitFor(d => d.t === 'state' && d.over && d.resign === 'b');
-ok('bob menyerah -> permainan selesai (over=true, resign="b")', stResign.over === true && stResign.resign === 'b');
+ok('bob menyerah -> over=true, resign="b"', stResign.over === true && stResign.resign === 'b');
+
+// 8. Rematch: Alice mengajak tanding ulang -> Bob menerima -> warna bertukar
+alice2.send(JSON.stringify({ t: 'rematch_offer' }));
+const offerNotice = await bob.waitFor(d => d.t === 'rematch_offered');
+ok('bob terima tawaran rematch', offerNotice.from === 'w');
+
+bob.send(JSON.stringify({ t: 'rematch_accept' }));
+const rematchBobInit = await bob.waitFor(d => d.t === 'init');
+const rematchAliceInit = await alice2.waitFor(d => d.t === 'init');
+ok('rematch -> bob kini putih', rematchBobInit.you === 'w', JSON.stringify(rematchBobInit));
+ok('rematch -> alice kini hitam', rematchAliceInit.you === 'b', JSON.stringify(rematchAliceInit));
+ok('rematch -> riwayat papan ter-reset', rematchBobInit.history.length === 0);
+
+// 9. Kontrol Waktu (Time Control): buat room dengan 180 detik
+const DAVID = 'david-' + run;
+const [, tcRes] = await post('/api/room', { id: DAVID, timeControl: 180 });
+const davidWs = await wsConnect(DAVID, tcRes.room);
+const davidInit = await davidWs.waitFor(d => d.t === 'init');
+ok('time control -> timers 180000ms', davidInit.timers && davidInit.timers.w === 180000, JSON.stringify(davidInit.timers));
 
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);
