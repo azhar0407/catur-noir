@@ -37,7 +37,7 @@
   </div>
 
   <!-- BANNER PENAWARAN (REMIS / REMATCH) -->
-  <div id="offer-banner" class="offer-banner" hidden>
+  <div id="offer-banner" class="offer-banner" hidden style="display: none;">
     <span id="offer-text">Lawan menawarkan remis</span>
     <div class="offer-actions">
       <button id="btn-offer-accept" class="btn-sm btn-accept">Terima</button>
@@ -64,7 +64,7 @@
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px;">
-      <div class="player-clock" id="clock-top" hidden>--:--</div>
+      <div class="player-clock" id="clock-top" hidden style="display: none;">--:--</div>
       <div class="player-turn-pill" id="turn-top" hidden>Giliran Lawan</div>
     </div>
   </div>
@@ -91,7 +91,7 @@
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px;">
-      <div class="player-clock" id="clock-bottom" hidden>--:--</div>
+      <div class="player-clock" id="clock-bottom" hidden style="display: none;">--:--</div>
       <div class="player-turn-pill" id="turn-bottom" hidden>Giliranmu</div>
     </div>
   </div>
@@ -108,7 +108,7 @@
       <button id="btn-draw" class="btn-tool btn-flip" title="Tawarkan Remis">🤝 Remis</button>
       <button id="btn-resign" class="btn-tool btn-tool-accent" title="Menyerah">🏳️ Menyerah</button>
     </div>
-    <div class="footer-actions-secondary" id="post-game-actions" hidden>
+    <div class="footer-actions-secondary" id="post-game-actions" hidden style="display: none;">
       <button id="btn-rematch" class="btn-tool-sm btn-tool-accent">🔄 Tanding Ulang</button>
       <button id="btn-pgn" class="btn-tool-sm">📋 Salin PGN</button>
       <button id="btn-analysis" class="btn-tool-sm">🔍 Analisis Lichess</button>
@@ -117,7 +117,7 @@
 </main>
 
 <!-- MODAL PROMOSI -->
-<div id="promo-modal" class="modal-backdrop" hidden>
+<div id="promo-modal" class="modal-backdrop" hidden style="display: none;">
   <div class="modal-box">
     <div class="modal-title">Promosi Pion</div>
     <div class="promo-choices" id="promo-choices"></div>

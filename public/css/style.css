@@ -14,9 +14,13 @@
   font-display: swap;
   src: url('/fonts/cinzel-latin-ext.woff2') format('woff2');
   unicode-range: U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
+  }
 
-:root {
+  [hidden] {
+    display: none !important;
+  }
+
+  :root {
   --bg: #0b0a09;
   --panel: #151312;
   --panel-2: #1c1917;
@@ -642,7 +646,7 @@ button.primary:hover { box-shadow: 0 6px 20px rgba(179, 32, 42, .4); border-colo
 
 /* ---------- BANNER PENAWARAN (REMIS / REMATCH) ---------- */
 .offer-banner {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -653,6 +657,12 @@ button.primary:hover { box-shadow: 0 6px 20px rgba(179, 32, 42, .4); border-colo
   color: var(--text);
   font-size: .86rem;
   animation: rise .2s ease-out;
+}
+.offer-banner:not([hidden]) {
+  display: flex;
+}
+.offer-banner[hidden] {
+  display: none !important;
 }
 .offer-actions {
   display: flex;
@@ -679,9 +689,15 @@ button.primary:hover { box-shadow: 0 6px 20px rgba(179, 32, 42, .4); border-colo
 
 /* ---------- FOOTER ACTIONS EXTENDED ---------- */
 .footer-actions-secondary {
-  display: flex;
+  display: none;
   gap: 6px;
   margin-top: 4px;
+}
+.footer-actions-secondary:not([hidden]) {
+  display: flex;
+}
+.footer-actions-secondary[hidden] {
+  display: none !important;
 }
 .btn-tool-sm {
   flex: 1;
@@ -717,11 +733,17 @@ button.primary:hover { box-shadow: 0 6px 20px rgba(179, 32, 42, .4); border-colo
   inset: 0;
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(4px);
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   z-index: 200;
   animation: fadeIn .15s ease-out;
+}
+.modal-backdrop:not([hidden]) {
+  display: flex;
+}
+.modal-backdrop[hidden] {
+  display: none !important;
 }
 .modal-box {
   background: var(--panel);

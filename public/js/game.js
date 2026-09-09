@@ -39,6 +39,28 @@ const clockTop = $('#clock-top');
 const clockBottom = $('#clock-bottom');
 const dragGhost = $('#drag-ghost');
 
+if (promoModal) {
+  promoModal.hidden = true;
+  promoModal.style.display = 'none';
+  promoModal.onclick = (e) => {
+    if (e.target === promoModal) {
+      promoModal.hidden = true;
+      promoModal.style.display = 'none';
+      pendingPromo = null;
+      sel = null;
+      render();
+    }
+  };
+}
+if (offerBanner) {
+  offerBanner.hidden = true;
+  offerBanner.style.display = 'none';
+}
+if (postGameActions) {
+  postGameActions.hidden = true;
+  postGameActions.style.display = 'none';
+}
+
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const GLYPHS = {
   w: { p: '♙', n: '♘', b: '♗', r: '♖', q: '♕' },
@@ -182,11 +204,15 @@ function updateClocksDisplay() {
   if (!clockTop || !clockBottom) return;
   if (!serverTimers) {
     clockTop.hidden = true;
+    clockTop.style.display = 'none';
     clockBottom.hidden = true;
+    clockBottom.style.display = 'none';
     return;
   }
   clockTop.hidden = false;
+  clockTop.style.display = 'inline-block';
   clockBottom.hidden = false;
+  clockBottom.style.display = 'inline-block';
 
   const now = Date.now();
   const elapsed = (serverTimers.activeTurn && !over) ? Math.max(0, now - timerLocalTs) : 0;
@@ -283,12 +309,14 @@ function askPromotion(color, from, to) {
     btn.appendChild(img);
     btn.onclick = () => {
       promoModal.hidden = true;
+      promoModal.style.display = 'none';
       executeMove(pendingPromo.from, pendingPromo.to, p);
       pendingPromo = null;
     };
     promoChoices.appendChild(btn);
   }
   promoModal.hidden = false;
+  promoModal.style.display = 'flex';
 }
 
 // --- PVP: WebSocket & Reconnect ---
@@ -402,12 +430,15 @@ function showOffer(msg, onAccept, onDecline) {
   if (!offerBanner) return;
   offerText.textContent = msg;
   offerBanner.hidden = false;
+  offerBanner.style.display = 'flex';
   btnOfferAccept.onclick = () => {
     offerBanner.hidden = true;
+    offerBanner.style.display = 'none';
     onAccept();
   };
   btnOfferDecline.onclick = () => {
     offerBanner.hidden = true;
+    offerBanner.style.display = 'none';
     onDecline();
   };
 }
@@ -646,7 +677,10 @@ function render() {
 
   if (drawBtn) drawBtn.hidden = over || spectator;
   if (resignBtn) resignBtn.hidden = over || spectator;
-  if (postGameActions) postGameActions.hidden = !over;
+  if (postGameActions) {
+    postGameActions.hidden = !over;
+    postGameActions.style.display = over ? 'flex' : 'none';
+  }
 
   // 3. Status Bar
   statusEl.className = 'status-bar';
