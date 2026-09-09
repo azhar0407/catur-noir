@@ -150,5 +150,18 @@ const davidWs = await wsConnect(DAVID, tcRes.room);
 const davidInit = await davidWs.waitFor(d => d.t === 'init');
 ok('time control -> timers 180000ms', davidInit.timers && davidInit.timers.w === 180000, JSON.stringify(davidInit.timers));
 
+// 10. Pilihan Sisi PvP: Pembuat memilih Hitam ('b'), lawan otomatis Putih ('w')
+const EDGAR_B = 'edgar-' + run;
+const FRANK_W = 'frank-' + run;
+const [, bRes] = await post('/api/room', { id: EDGAR_B, side: 'b' });
+ok('pvp create side="b" -> response color="b"', bRes && bRes.color === 'b');
+const edgarWs = await wsConnect(EDGAR_B, bRes.room);
+const edgarInit = await edgarWs.waitFor(d => d.t === 'init');
+ok('pvp creator side="b" -> ws you="b"', edgarInit.you === 'b');
+
+const frankWs = await wsConnect(FRANK_W, bRes.room);
+const frankInit = await frankWs.waitFor(d => d.t === 'init');
+ok('pvp opponent -> ws you="w"', frankInit.you === 'w');
+
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

@@ -21,13 +21,14 @@ window.noirToast = toast;
 $('#btn-create').onclick = async () => {
   const btn = $('#btn-create');
   const timeControl = parseInt($('#sel-time')?.value || '0', 10) || 0;
+  const side = $('#sel-side-pvp')?.value || 'w';
   btn.disabled = true;
   btn.textContent = 'Membuat…';
   try {
     const res = await fetch('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id, timeControl, force: true }),
+      body: JSON.stringify({ id, timeControl, side, force: true }),
     });
     const data = await res.json();
     if (data.room) location.href = '/game?m=pvp&r=' + data.room;

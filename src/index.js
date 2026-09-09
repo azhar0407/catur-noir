@@ -41,6 +41,9 @@ async function createRoom(req, env) {
   if (!id || id.length > 64 || id === 'null' || id === 'undefined') return json({ error: 'id tidak valid' }, 400);
 
   const tc = Math.max(0, parseInt(body.timeControl || body.t || '0', 10) || 0);
+  let side = typeof body.side === 'string' ? body.side.trim().toLowerCase() : 'w';
+  if (side === 'rnd') side = Math.random() < 0.5 ? 'w' : 'b';
+  if (side !== 'w' && side !== 'b') side = 'w';
   const force = !!body.force;
 
   // Direktori per-id: satu id = satu ruang (idempoten jika aktif, buat baru jika diminta/selesai).
@@ -51,7 +54,7 @@ async function createRoom(req, env) {
       const stub = env.ROOM.get(env.ROOM.idFromName(existing.room));
       const info = await stub.fetch('https://do/info').then(r => r.json()).catch(() => ({}));
       if (info.ok && info.created && !info.over) {
-        return json({ room: existing.room, color: 'w' });
+        return json({ room: existing.room, color: side });
       }
     }
   }
@@ -61,7 +64,7 @@ async function createRoom(req, env) {
     let code = '';
     for (let j = 0; j < 4; j++) code += ALPHA[Math.floor(Math.random() * ALPHA.length)];
     const stub = env.ROOM.get(env.ROOM.idFromName(code));
-    const res = await stub.fetch('https://do/create?c=' + encodeURIComponent(id) + '&t=' + encodeURIComponent(tc));
+    const res = await stub.fetch('https://do/create?c=' + encodeURIComponent(id) + '&t=' + encodeURIComponent(tc) + '&side=' + encodeURIComponent(side));
     const data = await res.json().catch(() => ({}));
     if (data.ok) {
       if (!force) {
@@ -69,11 +72,11 @@ async function createRoom(req, env) {
         if (check.room) {
           const chkStub = env.ROOM.get(env.ROOM.idFromName(check.room));
           const chkInfo = await chkStub.fetch('https://do/info').then(r => r.json()).catch(() => ({}));
-          if (chkInfo.ok && chkInfo.created && !chkInfo.over) return json({ room: check.room, color: 'w' });
+          if (chkInfo.ok && chkInfo.created && !chkInfo.over) return json({ room: check.room, color: data.color || side });
         }
       }
       await dir.fetch('https://do/dir-set?r=' + encodeURIComponent(code));
-      return json({ room: code, color: 'w' });
+      return json({ room: code, color: data.color || side });
     }
   }
   return json({ error: 'gagal membuat ruang, coba lagi' }, 503);

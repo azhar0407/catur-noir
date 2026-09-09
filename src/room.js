@@ -89,6 +89,9 @@ export class Room {
     if (url.pathname === '/create') {
       const id = (url.searchParams.get('c') || '').trim();
       const tc = Math.max(0, parseInt(url.searchParams.get('t') || '0', 10) || 0);
+      let side = (url.searchParams.get('side') || 'w').toLowerCase();
+      if (side === 'rnd') side = Math.random() < 0.5 ? 'w' : 'b';
+      if (side !== 'w' && side !== 'b') side = 'w';
       if (!id || id === 'null' || id === 'undefined') return json({ ok: false }, 400);
       if (this.created) return json({ ok: false });
 
@@ -96,7 +99,7 @@ export class Room {
       this.creatorId = id;
       this.game = new Chess(START);
       this.status = null;
-      this.players = { [id]: 'w' };
+      this.players = { [id]: side };
       this.timeControl = tc;
       this.clocks = tc > 0 ? { w: tc * 1000, b: tc * 1000, lastMoveTs: null, started: false } : null;
 
@@ -113,7 +116,7 @@ export class Room {
         lastActivity: Date.now(),
       });
       await this.schedulePrune(3600000);
-      return json({ ok: true, color: 'w' });
+      return json({ ok: true, color: side });
     }
 
     if (url.pathname === '/info' || url.pathname === '/status') {
