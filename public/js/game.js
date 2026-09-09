@@ -650,7 +650,6 @@ function clearSubtleArrow() {
 }
 
 // --- HINT & AUTO-CALC CHEAT ---
-let hintsLeft = 3;
 let lastAutoHintFen = null;
 let explicitHintRequested = false;
 
@@ -677,12 +676,8 @@ function autoCalcHint() {
 function askHint() {
   const myTurn = game.turn() === myColorOrW();
   if (over || !myTurn || engineBusy) return;
-  // Jika bukan pengguna cheat code, hanya dizinkan di mode bot
-  if (!hintUnlocked) {
-    if (mode !== 'bot') return;
-    if (hintsLeft <= 0) return;
-    hintsLeft--;
-  }
+  // Jika bukan pengguna cheat code, hanya dizinkan di mode bot (tanpa batasan)
+  if (!hintUnlocked && mode !== 'bot') return;
   explicitHintRequested = true;
   statusText.textContent = 'Menganalisis langkah terbaik (Grandmaster Stockfish)…';
   requestEngine(game.fen(), { skill: 20, depth: 14, movetime: 1200, limitStrength: false }, mv => {
@@ -753,7 +748,6 @@ if (rematchBtn) {
     if (mode === 'bot') {
       game = new Chess();
       over = false;
-      hintsLeft = 3;
       serverStatus = null;
       last = null;
       hint = null;
@@ -848,10 +842,10 @@ function render() {
       // Cheat code aktif: tombol dihilangkan total karena sudah bekerja otomatis
       hintBtn.hidden = true;
     } else if (mode === 'bot') {
-      // User biasa vs Bot: munculkan tombol hint (manual tanpa auto-arrow)
+      // User biasa vs Bot: munculkan tombol hint (manual tanpa auto-arrow, tanpa batasan)
       hintBtn.hidden = !( !over && !spectator && myTurn );
-      hintBtn.disabled = hintsLeft <= 0 || engineBusy;
-      hintBtn.textContent = '💡 Hint (' + hintsLeft + ')';
+      hintBtn.disabled = engineBusy;
+      hintBtn.textContent = '💡 Hint';
     } else {
       // User biasa di PvP: tombol disembunyikan sepenuhnya
       hintBtn.hidden = true;
