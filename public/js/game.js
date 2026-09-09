@@ -434,6 +434,9 @@ function connect() {
         try { game.load(d.fen); } catch {}
         last = d.last;
         hint = null;
+        lastAutoHintFen = null;
+        explicitHintRequested = false;
+        clearSubtleArrow();
         sel = null;
         over = isFinished();
 
@@ -542,6 +545,9 @@ function executeMove(from, to, promo = 'q') {
   over = isFinished();
   last = { from: mv.from, to: mv.to, captured: !!captured };
   hint = null;
+  lastAutoHintFen = null;
+  explicitHintRequested = false;
+  clearSubtleArrow();
   sel = null;
 
   if (over) playSfx('gameover');
@@ -586,15 +592,97 @@ function botMove() {
   });
 }
 
-// --- HINT ---
+// --- INDIKATOR ARAH SAMAR (SUBTLE ARROW) ---
+function drawSubtleArrow(from, to) {
+  const svg = $('#board-arrows');
+  if (!svg) return;
+  const defs = svg.querySelector('defs');
+  svg.innerHTML = '';
+  if (defs) svg.appendChild(defs);
+  if (!from || !to) return;
+
+  const f1 = from[0], r1 = parseInt(from[1], 10);
+  const f2 = to[0], r2 = parseInt(to[1], 10);
+
+  const col1 = flip ? (7 - (f1.charCodeAt(0) - 97)) : (f1.charCodeAt(0) - 97);
+  const row1 = flip ? (r1 - 1) : (8 - r1);
+  const col2 = flip ? (7 - (f2.charCodeAt(0) - 97)) : (f2.charCodeAt(0) - 97);
+  const row2 = flip ? (r2 - 1) : (8 - r2);
+
+  const cx1 = col1 * 100 + 50;
+  const cy1 = row1 * 100 + 50;
+  const cx2 = col2 * 100 + 50;
+  const cy2 = row2 * 100 + 50;
+
+  const dx = cx2 - cx1;
+  const dy = cy2 - cy1;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return;
+
+  const ux = dx / len;
+  const uy = dy / len;
+
+  // Offset agar awal panah dari luar pion dan ujung di petak tujuan
+  const x1 = cx1 + ux * 22;
+  const y1 = cy1 + uy * 22;
+  const x2 = cx2 - ux * 25;
+  const y2 = cy2 - uy * 25;
+
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', x1);
+  line.setAttribute('y1', y1);
+  line.setAttribute('x2', x2);
+  line.setAttribute('y2', y2);
+  line.setAttribute('stroke', 'rgba(212, 160, 23, 0.28)');
+  line.setAttribute('stroke-width', '10');
+  line.setAttribute('stroke-linecap', 'round');
+  line.setAttribute('marker-end', 'url(#subtle-arrow-head)');
+
+  svg.appendChild(line);
+}
+
+function clearSubtleArrow() {
+  const svg = $('#board-arrows');
+  if (!svg) return;
+  const defs = svg.querySelector('defs');
+  svg.innerHTML = '';
+  if (defs) svg.appendChild(defs);
+}
+
+// --- HINT & AUTO-CALC CHEAT ---
 let hintsLeft = 3;
+let lastAutoHintFen = null;
+let explicitHintRequested = false;
+
+function autoCalcHint() {
+  if (!hintUnlocked || over) return;
+  const myActual = myColorOrW();
+  if (game.turn() !== myActual) return;
+  const currentFen = game.fen();
+  if (lastAutoHintFen === currentFen) return;
+  lastAutoHintFen = currentFen;
+
+  requestEngine(currentFen, { skill: 20, depth: 14, movetime: 800, limitStrength: false }, mv => {
+    if (game.fen() === currentFen && !over && game.turn() === myActual) {
+      hint = mv;
+      drawSubtleArrow(hint.from, hint.to);
+      const cFrom = document.querySelector(`.cell[data-sq="${hint.from}"]`);
+      const cTo = document.querySelector(`.cell[data-sq="${hint.to}"]`);
+      if (cFrom) cFrom.classList.add('hint');
+      if (cTo) cTo.classList.add('hint');
+    }
+  });
+}
+
 function askHint() {
   const myTurn = game.turn() === myColorOrW();
   if (over || !myTurn || engineBusy) return;
-  if (mode === 'pvp') {
-    if (!hintUnlocked || hintsLeft <= 0) return;
+  // Jika cheat code aktif, kuota tidak pernah dikurangi (unlimited)
+  if (mode === 'pvp' && !hintUnlocked) {
+    if (hintsLeft <= 0) return;
     hintsLeft--;
   }
+  explicitHintRequested = true;
   statusText.textContent = 'Menganalisis langkah terbaik (Grandmaster Stockfish)…';
   requestEngine(game.fen(), { skill: 20, depth: 14, movetime: 1200, limitStrength: false }, mv => {
     hint = mv;
@@ -607,7 +695,7 @@ function askHint() {
         evalStr = ` (eval: ${sign}${(mv.eval.val / 100).toFixed(1)})`;
       }
     }
-    statusText.textContent = `💡 Rekomendasi: ${mv.from} → ${mv.to}${evalStr}`;
+    statusText.textContent = `💡 Rekomendasi: ${mv.from.toUpperCase()} ke ${mv.to.toUpperCase()}${evalStr}`;
     toast(`💡 Rekomendasi: ${mv.from.toUpperCase()} ke ${mv.to.toUpperCase()}${evalStr}`, true);
     render();
   });
@@ -755,8 +843,8 @@ function render() {
   // 2. Tombol Hint & Aksi
   if (hintBtn) {
     hintBtn.hidden = !(hintUnlocked && !over && !spectator && myTurn);
-    hintBtn.disabled = (mode === 'pvp' && hintsLeft <= 0) || engineBusy;
-    hintBtn.textContent = mode === 'pvp' ? '💡 Hint (' + hintsLeft + ')' : '💡 Hint';
+    hintBtn.disabled = (mode === 'pvp' && !hintUnlocked && hintsLeft <= 0) || engineBusy;
+    hintBtn.textContent = (mode === 'pvp' && !hintUnlocked) ? '💡 Hint (' + hintsLeft + ')' : '💡 Hint';
   }
 
   if (drawBtn) drawBtn.hidden = over || spectator;
@@ -777,7 +865,7 @@ function render() {
   } else if (over) {
     statusText.textContent = hasilText();
     statusEl.classList.add('over');
-  } else if (hint && !over) {
+  } else if (hint && !over && explicitHintRequested) {
     let evalStr = '';
     if (hint.eval) {
       if (hint.eval.type === 'mate') {
@@ -855,12 +943,23 @@ function render() {
 
       cell.onclick = () => onCell(sq, p);
       board.appendChild(cell);
-    }
-  }
+      }
+      }
 
-  // 6. Riwayat Langkah
-  renderMovesHistory();
-  updateClocksDisplay();
+      // 6. Riwayat Langkah & Indikator Arah
+      if (hint) {
+      drawSubtleArrow(hint.from, hint.to);
+      } else {
+      clearSubtleArrow();
+      }
+
+      renderMovesHistory();
+      updateClocksDisplay();
+
+      // 7. Auto-Hint jika cheat aktif (tanpa perlu tekan tombol)
+      if (hintUnlocked && !over && !spectator && myTurn && !hint && !engineBusy) {
+      autoCalcHint();
+      }
 }
 
 // --- DRAG & DROP SUPPORT ---
@@ -1115,7 +1214,9 @@ if (brandEl) {
           localStorage.setItem('noir-hint-ok', '1');
           hintUnlocked = true;
           if (hintBtn) hintBtn.hidden = false;
-          toast('Cheat aktif! Hint terbuka.', true);
+          toast('Cheat aktif! Penunjuk arah otomatis aktif.', true);
+          autoCalcHint();
+          render();
         } else toast('Kode salah.');
       })
       .catch(() => toast('Gagal menghubungi server.'));

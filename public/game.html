@@ -74,6 +74,13 @@
     <div class="board-wrap">
       <div id="ranks" aria-hidden="true"></div>
       <div id="board" aria-label="Papan catur" role="grid"></div>
+      <svg id="board-arrows" class="board-arrows" viewBox="0 0 800 800" aria-hidden="true">
+        <defs>
+          <marker id="subtle-arrow-head" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="rgba(212, 160, 23, 0.28)"/>
+          </marker>
+        </defs>
+      </svg>
       <div id="files" aria-hidden="true"></div>
     </div>
   </div>
