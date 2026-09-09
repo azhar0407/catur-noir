@@ -746,6 +746,18 @@ function render() {
   } else if (over) {
     statusText.textContent = hasilText();
     statusEl.classList.add('over');
+  } else if (hint && !over) {
+    let evalStr = '';
+    if (hint.eval) {
+      if (hint.eval.type === 'mate') {
+        evalStr = ` (Skakmat dalam ${Math.abs(hint.eval.val)} langkah!)`;
+      } else {
+        const sign = hint.eval.val > 0 ? '+' : '';
+        evalStr = ` (eval: ${sign}${(hint.eval.val / 100).toFixed(1)})`;
+      }
+    }
+    statusText.textContent = `💡 Rekomendasi: ${hint.from.toUpperCase()} ke ${hint.to.toUpperCase()}${evalStr}`;
+    statusEl.classList.add('mine');
   } else if (game.inCheck()) {
     const terancam = game.turn() === myActualColor ? 'Kamu' : 'Lawan';
     statusText.textContent = 'Skak! ' + terancam + ' dalam posisi terancam!';
