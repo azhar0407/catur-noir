@@ -194,6 +194,7 @@ export class Room {
     await this.load();
     let d;
     try { d = JSON.parse(msg); } catch { return; }
+    if (!d || typeof d !== 'object') return;
     if (d.t === 'ping') return this.send(ws, { t: 'pong' });
 
     const att = ws.deserializeAttachment() || {};

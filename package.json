@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "test": "node tests/ws-test.mjs"
+    "test": "node tests/ws-test.mjs",
+    "test:boundary": "node tests/boundary-test.mjs"
   },
   "dependencies": {
     "chess.js": "^1.4.0"
