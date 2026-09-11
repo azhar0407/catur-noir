@@ -250,6 +250,8 @@ function updateClocksDisplay() {
       };
       playSfx('gameover');
       render();
+    } else if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ t: 'claim_timeout' }));
     }
   }
 }
@@ -451,7 +453,9 @@ function connect() {
         }
         render();
       } else {
+        const wasOver = over;
         over = isFinished();
+        if (!wasOver && over) playSfx('gameover');
         render();
       }
     } else if (d.t === 'draw_offered') {
@@ -751,6 +755,9 @@ if (rematchBtn) {
       serverStatus = null;
       last = null;
       hint = null;
+      lastAutoHintFen = null;
+      explicitHintRequested = false;
+      clearSubtleArrow();
       sel = null;
       moveHistory = [];
       myColor = myColor === 'w' ? 'b' : 'w';

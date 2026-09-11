@@ -60,6 +60,19 @@ export class Room {
     this.loaded = true;
   }
 
+  checkTimeout() {
+    if (this.timeControl > 0 && this.clocks && this.clocks.started && !this.isGameOver() && this.clocks.lastMoveTs) {
+      const turn = this.game.turn();
+      const elapsed = Date.now() - this.clocks.lastMoveTs;
+      if (elapsed >= this.clocks[turn]) {
+        this.clocks[turn] = 0;
+        this.status = { over: true, result: 'timeout', winner: turn === 'w' ? 'b' : 'w' };
+        return true;
+      }
+    }
+    return false;
+  }
+
   isGameOver() {
     if (this.status && this.status.over) return true;
     return this.game ? this.game.isGameOver() : false;
@@ -200,6 +213,13 @@ export class Room {
     const att = ws.deserializeAttachment() || {};
     const color = att.color || this.players[att.id];
 
+    if (this.checkTimeout()) {
+      await this.ctx.storage.put({ status: this.status, clocks: this.clocks, over: 1, lastActivity: Date.now() });
+      this.broadcastState();
+      return;
+    }
+    if (d.t === 'claim_timeout') return;
+
     // 1. Move
     if (d.t === 'move') {
       if (this.isGameOver()) return this.send(ws, { t: 'error', error: 'permainan sudah selesai' });
@@ -250,6 +270,13 @@ export class Room {
         clocks: this.clocks,
         lastActivity: Date.now(),
       });
+
+      if (this.timeControl > 0 && this.clocks && !this.isGameOver()) {
+        const nextRem = this.clocks[this.game.turn()];
+        if (nextRem > 0) {
+          await this.ctx.storage.setAlarm(Date.now() + nextRem + 500);
+        }
+      }
 
       this.broadcastState({ from: mv.from, to: mv.to });
       return;
@@ -379,15 +406,9 @@ export class Room {
     await this.load();
 
     // 1. Cek timeout jam pertandingan
-    if (this.timeControl > 0 && this.clocks && this.clocks.started && !this.isGameOver() && this.clocks.lastMoveTs) {
-      const turn = this.game.turn();
-      const elapsed = Date.now() - this.clocks.lastMoveTs;
-      if (elapsed >= this.clocks[turn]) {
-        this.clocks[turn] = 0;
-        this.status = { over: true, result: 'timeout', winner: turn === 'w' ? 'b' : 'w' };
-        await this.ctx.storage.put({ status: this.status, clocks: this.clocks, over: 1, lastActivity: Date.now() });
-        this.broadcastState();
-      }
+    if (this.checkTimeout()) {
+      await this.ctx.storage.put({ status: this.status, clocks: this.clocks, over: 1, lastActivity: Date.now() });
+      this.broadcastState();
     }
 
     // 2. Cek koneksi aktif dan idle cleanup

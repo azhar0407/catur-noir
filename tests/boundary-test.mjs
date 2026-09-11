@@ -375,6 +375,21 @@ await testAsync('Room DO langkah tidak sah (koordinat fiktif, null, angka) ditol
   }
 });
 
+await testAsync('Room DO checkTimeout mendeteksi waktu habis dan menetapkan status game over timeout', async () => {
+  const room = createMockRoom();
+  // Room dengan timeControl 3 detik
+  await room.fetch(new Request('https://do/create?c=user1&t=3'));
+  // Simulasikan turn dimulai 5 detik lalu
+  room.clocks.started = true;
+  room.clocks.lastMoveTs = Date.now() - 5000;
+  
+  const isTimedOut = room.checkTimeout();
+  assert.equal(isTimedOut, true);
+  assert.equal(room.status.over, true);
+  assert.equal(room.status.result, 'timeout');
+  assert.equal(room.status.winner, 'b'); // Giliran putih habis -> hitam menang
+});
+
 // Ringkasan hasil
 console.log(`\n========================================`);
 console.log(`Total: ${passed + failed} | Lolos: ${passed} | Gagal: ${failed}`);
