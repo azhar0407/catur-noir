@@ -98,3 +98,8 @@ $('#logo').onclick = () => {
     })
     .catch(() => toast('Gagal menghubungi server.'));
 };
+
+// PWA Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}

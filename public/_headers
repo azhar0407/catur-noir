@@ -5,5 +5,17 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' wss: ws:; worker-src 'self' blob:;
 
+/js/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/pieces/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
 /js/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/sw.js
   Cache-Control: public, max-age=0, must-revalidate

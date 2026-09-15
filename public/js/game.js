@@ -1202,6 +1202,12 @@ if (mode === 'pvp') {
   }
 }
 
+// Warm-up Stockfish engine
+if (mode === 'bot' || hintUnlocked) {
+  if ('requestIdleCallback' in window) requestIdleCallback(ensureEngine);
+  else setTimeout(ensureEngine, 100);
+}
+
 // Gerbang rahasia: ketuk logo 3x untuk membuka hint
 let secretTaps = 0, secretTimer = null;
 const brandEl = $('.brand');
@@ -1233,4 +1239,9 @@ if (brandEl) {
       })
       .catch(() => toast('Gagal menghubungi server.'));
   };
+}
+
+// PWA Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
