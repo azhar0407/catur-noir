@@ -3,76 +3,86 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0b0a09">
+<meta name="theme-color" content="#0b1510">
 <meta name="description" content="Duel catur realtime tanpa akun — cukup bagikan tautan.">
 <title>Catur Noir</title>
 <link rel="manifest" href="/manifest.json">
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/style.css?v=2">
 </head>
 <body>
 <main class="lobby">
+  <span class="hero-eyebrow">Duel Catur Realtime</span>
   <h1 id="logo">Catur <span>Noir</span></h1>
-  <p class="tagline">Duel catur realtime — tanpa akun, cukup bagikan tautan.</p>
+  <p class="tagline">Tantang teman dalam duel catur kilat langsung dari peramban — tanpa akun, tanpa unduhan. Cukup bagikan tautan, atau asah taktik melawan bot Stockfish.</p>
   <div class="rule"></div>
 
-  <section class="card">
-    <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M5 8l7-5 7 5M7 21h10" stroke-linecap="round" stroke-linejoin="round"/></svg>Buat Ruang</h2>
-    <div class="lobby-field">
-      <label for="sel-time" class="field-label">Kontrol Waktu:</label>
-      <select id="sel-time" aria-label="Kontrol Waktu">
-        <option value="0" selected>Tanpa Waktu</option>
-        <option value="180">3 Menit (Blitz)</option>
-        <option value="300">5 Menit (Blitz)</option>
-        <option value="600">10 Menit (Rapid)</option>
-      </select>
-    </div>
-    <div class="lobby-field">
-      <label for="sel-side-pvp" class="field-label">Pilih Sisi:</label>
-      <select id="sel-side-pvp" aria-label="Pilih Sisi PvP">
-        <option value="w" selected>Putih (mulai duluan)</option>
-        <option value="b">Hitam (lawan mulai duluan)</option>
-        <option value="rnd">Acak</option>
-      </select>
-    </div>
-    <button id="btn-create" class="primary">Buat Ruang PvP</button>
-  </section>
-
-  <section class="card">
-    <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7L12.5 18.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Gabung Ruang</h2>
-    <div class="row">
-      <input id="inp-code" maxlength="4" placeholder="KODE" autocomplete="off" aria-label="Kode ruang 4 huruf">
-      <button id="btn-join">Gabung</button>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>Main vs Komputer</h2>
-    <div class="lobby-field">
-      <label for="sel-side" class="field-label">Pilih Sisi:</label>
-      <select id="sel-side" aria-label="Pilih Sisi">
-        <option value="w" selected>Putih (mulai duluan)</option>
-        <option value="b">Hitam (komputer mulai)</option>
-        <option value="rnd">Acak</option>
-      </select>
-    </div>
-    <div class="lobby-field">
-      <div class="field-header">
-        <label for="slider-elo" class="field-label">Kekuatan Bot (Elo):</label>
-        <span id="elo-display" class="elo-badge">1500 Elo · Klub</span>
+  <div class="mode-grid">
+    <section class="card">
+      <h2><span class="mode-ico">⚔️</span>Buat Ruang</h2>
+      <p class="card-desc">Buka arena PvP baru dan undang lawan dengan kode 4 huruf.</p>
+      <div class="lobby-field">
+        <label for="sel-time" class="field-label">Kontrol Waktu</label>
+        <select id="sel-time" aria-label="Kontrol Waktu">
+          <option value="0" selected>Tanpa Waktu</option>
+          <option value="180">3 Menit (Blitz)</option>
+          <option value="300">5 Menit (Blitz)</option>
+          <option value="600">10 Menit (Rapid)</option>
+        </select>
       </div>
-      <input type="range" id="slider-elo" min="0" max="3200" step="50" value="1500" class="elo-slider" aria-label="Slider Elo Bot">
-      <div class="elo-ticks">
-        <span>0 (Pemula)</span>
-        <span>1500 (Klub)</span>
-        <span>3200 (Max)</span>
+      <div class="lobby-field">
+        <label for="sel-side-pvp" class="field-label">Pilih Sisi</label>
+        <select id="sel-side-pvp" aria-label="Pilih Sisi PvP">
+          <option value="w" selected>Putih (mulai duluan)</option>
+          <option value="b">Hitam (lawan mulai duluan)</option>
+          <option value="rnd">Acak</option>
+        </select>
       </div>
-    </div>
-    <button id="btn-bot" class="primary">Tantang Bot</button>
-  </section>
+      <button id="btn-create" class="primary">Buat Ruang PvP</button>
+    </section>
 
-  <p class="lobby-foot">noir · tanpa akun · tanpa cookie pelacak</p>
+    <section class="card">
+      <h2><span class="mode-ico">🔗</span>Gabung Ruang</h2>
+      <p class="card-desc">Punya kode undangan dari teman? Masukkan dan langsung bertanding.</p>
+      <div class="lobby-field">
+        <label for="inp-code" class="field-label">Kode Ruang</label>
+        <div class="row">
+          <input id="inp-code" maxlength="4" placeholder="XXXX" autocomplete="off" aria-label="Kode ruang 4 huruf">
+          <button id="btn-join">Gabung</button>
+        </div>
+      </div>
+      <p class="card-desc" style="margin:0">Kode terdiri dari 4 huruf — contoh: <b style="color:var(--brass-hi)">KQZM</b>.</p>
+    </section>
+
+    <section class="card wide">
+      <h2><span class="mode-ico">🤖</span>Main vs Komputer</h2>
+      <p class="card-desc">Latih pembukaan dan taktik melawan Stockfish 18 — atur kekuatannya dari pemula hingga super-engine.</p>
+      <div class="lobby-field">
+        <label for="sel-side" class="field-label">Pilih Sisi</label>
+        <select id="sel-side" aria-label="Pilih Sisi">
+          <option value="w" selected>Putih (mulai duluan)</option>
+          <option value="b">Hitam (komputer mulai)</option>
+          <option value="rnd">Acak</option>
+        </select>
+      </div>
+      <div class="lobby-field">
+        <div class="field-header">
+          <label for="slider-elo" class="field-label">Kekuatan Bot (Elo)</label>
+          <span id="elo-display" class="elo-badge">1500 Elo · Klub</span>
+        </div>
+        <input type="range" id="slider-elo" min="0" max="3200" step="50" value="1500" class="elo-slider" aria-label="Slider Elo Bot">
+        <div class="elo-ticks">
+          <span>0 · Pemula</span>
+          <span>1500 · Klub</span>
+          <span>3200 · Max</span>
+        </div>
+      </div>
+      <button id="btn-bot" class="primary">Tantang Bot</button>
+    </section>
+  </div>
+
+  <p class="lobby-foot"><b>Noir</b> · tanpa akun · tanpa cookie pelacak</p>
 </main>
 <div id="toast-box"></div>
-<script src="/js/app.js?v=2"></script>
+<script src="/js/app.js?v=3"></script>
 </body>
 </html>
