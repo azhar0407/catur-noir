@@ -3,21 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#0b0a09">
+<meta name="theme-color" content="#0b1510">
 <meta name="description" content="Duel catur realtime tanpa akun — Catur Noir">
 <title>Catur Noir</title>
 <link rel="manifest" href="/manifest.json">
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/style.css?v=2">
 </head>
 <body>
 <main class="game">
   <header class="arena-header">
     <a href="/" class="btn-lobby" title="Kembali ke lobi">‹ Lobi</a>
     <div class="arena-title">
-      <span class="brand-text">Catur <span>Noir</span></span>
+      <span class="brand brand-text">Catur <span>Noir</span></span>
       <span id="room-label" class="room-pill"></span>
     </div>
-    <div style="display:flex; gap:6px;">
+    <div class="header-actions">
       <button id="btn-sound" class="btn-header-action" aria-label="Suara" title="Suara: Aktif">🔊</button>
       <button id="btn-share-toggle" class="btn-header-action" aria-label="Bagikan Tautan" title="Bagikan Tautan" hidden>
         <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
@@ -63,7 +63,7 @@
         <div class="player-captures" id="captured-top"></div>
       </div>
     </div>
-    <div style="display:flex; align-items:center; gap:8px;">
+    <div class="player-side">
       <div class="player-clock" id="clock-top" hidden style="display: none;">--:--</div>
       <div class="player-turn-pill" id="turn-top" hidden>Giliran Lawan</div>
     </div>
@@ -77,7 +77,7 @@
       <svg id="board-arrows" class="board-arrows" viewBox="0 0 800 800" aria-hidden="true">
         <defs>
           <marker id="subtle-arrow-head" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="rgba(212, 160, 23, 0.28)"/>
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="rgba(238, 214, 138, 0.35)"/>
           </marker>
         </defs>
       </svg>
@@ -97,7 +97,7 @@
         <div class="player-captures" id="captured-bottom"></div>
       </div>
     </div>
-    <div style="display:flex; align-items:center; gap:8px;">
+    <div class="player-side">
       <div class="player-clock" id="clock-bottom" hidden style="display: none;">--:--</div>
       <div class="player-turn-pill" id="turn-bottom" hidden>Giliranmu</div>
     </div>
@@ -106,14 +106,14 @@
   <!-- RIWAYAT & AKSI -->
   <div class="arena-footer">
     <div class="moves-container">
-      <div class="moves-label">Langkah:</div>
+      <div class="moves-label">Langkah</div>
       <div id="moves" aria-label="Riwayat langkah"></div>
     </div>
     <div class="footer-actions">
       <button id="btn-hint" class="btn-tool btn-hint" hidden>💡 Hint</button>
       <button id="btn-flip" class="btn-tool btn-flip" title="Balik sudut pandang papan">🔄 Balik</button>
       <button id="btn-draw" class="btn-tool btn-flip" title="Tawarkan Remis">🤝 Remis</button>
-      <button id="btn-resign" class="btn-tool btn-tool-accent" title="Menyerah">🏳️ Menyerah</button>
+      <button id="btn-resign" class="btn-tool btn-resign" title="Menyerah">🏳️ Menyerah</button>
     </div>
     <div class="footer-actions-secondary" id="post-game-actions" hidden style="display: none;">
       <button id="btn-rematch" class="btn-tool-sm btn-tool-accent">🔄 Tanding Ulang</button>
@@ -135,6 +135,6 @@
 <img id="drag-ghost" alt="ghost" src="">
 
 <div id="toast-box"></div>
-<script type="module" src="/js/game.js?v=4"></script>
+<script type="module" src="/js/game.js?v=5"></script>
 </body>
 </html>

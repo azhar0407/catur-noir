@@ -1,6 +1,6 @@
 // Catur Noir — Minimal Offline Service Worker
 // ponytail: Cache-first for assets/vendor/pieces, Network-first for shell.
-const CACHE_NAME = 'noir-v1';
+const CACHE_NAME = 'noir-v2';
 
 const PRECACHE_URLS = [
   '/',
