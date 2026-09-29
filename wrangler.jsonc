@@ -13,5 +13,8 @@
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["Room"] }
+  ],
+  "routes": [
+    { "pattern": "catur.noirlucilfer.com/*", "zone_name": "noirlucilfer.com" }
   ]
 }
